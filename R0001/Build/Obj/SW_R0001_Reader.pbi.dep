@@ -1,0 +1,5 @@
+SW_R0001_Reader.pbi: E:\AnyID\Git\R0001\R0001\src\SW_R0001_Reader.c \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc\SW_R0001_Reader.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc/SW_R0001_FRam.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc/SW_FRam.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc/SW_R0001_FRam_HL.h

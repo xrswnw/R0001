@@ -1,0 +1,7 @@
+SW_R0001_SysCfg.pbi: E:\AnyID\Git\R0001\R0001\R0001\..\SW_R0001_Config.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc\SW_R0001_FRam_HL.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc\SW_FRam.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc\SW_R0001_FRam.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc\SW_R0001_Device.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc\SW_R0001_SysCfg.h \
+  E:\AnyID\Git\R0001\R0001\src\SW_R0001_SysCfg.c

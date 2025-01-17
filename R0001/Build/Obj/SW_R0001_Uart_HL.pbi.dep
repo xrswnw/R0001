@@ -1,0 +1,3 @@
+SW_R0001_Uart_HL.pbi: E:\AnyID\Git\R0001\R0001\R0001\..\SW_R0001_Config.h \
+  E:\AnyID\Git\R0001\R0001\R0001\..\inc\SW_R0001_Uart_HL.h \
+  E:\AnyID\Git\R0001\R0001\src\SW_R0001_Uart_HL.c
