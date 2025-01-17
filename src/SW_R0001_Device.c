@@ -20,21 +20,7 @@ void Reader_Init(void)
     FM17xx_Reset();
     ISO14443A_Init();
     FM17xx_OpenAntenna() ;
-    /*if((g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO14443A)
-    {
-        ISO14443A_Init();
-        FM17xx_CloseAntenna();
-    }   
-    else if((g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693)
-    {
-        //ISO15693_Init();
-    }
-    if(g_sDeviceParamenter.rfCtrl == READER_RF_CLOSE)
-    {
-        FM17xx_CloseAntenna();
-    }*/
-    
-    
+
     if(Device_ReadBootParamenter(DEVICE_APP_PAR_START) == FALSE || 
     (g_sDeviceBootParamenter.appState != DEVICE_BOOT_APP_OK) ||
     Device_ReadBootParamenter(DEVICE_APPPAR_BACK_START) == FALSE)
@@ -43,10 +29,12 @@ void Reader_Init(void)
         Device_WriteBootParamenter(DEVICE_APP_PAR_START);
         Device_WriteBootParamenter(DEVICE_APPPAR_BACK_START);
     }
-    
     u8 value = 0;
     
     value = DEVICE_VERSION[21] + DEVICE_HARD_TYPE[4];
+    
+    
+    a_SetState(g_sDeviceOp.state, DEVICE_STAT_IDLE);
 }
 
 
@@ -1657,6 +1645,16 @@ u8 Reader_ProcessFrame(u8 *pFrame, u8 len)
 //-------------------------------------
 DEVICE_BOOTPARAMS g_sDeviceBootParamenter = {0};
 DEVICE_PARAMS g_sDeviceParams = {0};
+DEVICE_OP g_sDeviceOp = {0};
+DEVICE_OPTAGINFO g_sDeviceOpTagInfo = {0};
+
+void Device_Delayms(u32 n)
+{
+    n *= 0x3800;
+    n++;
+    while(n--);
+}
+
 
 BOOL Device_ReadBootParamenter(u32 addr)                                         //OK
 {
@@ -1770,7 +1768,6 @@ BOOL Device_WriteParamenters(u32 addr)
     FLASH_Status flashStatus = FLASH_BUSY;
 
     pDevicePar = (u16 *)(&g_sDeviceParams);
-
     g_sDeviceParams.crc = 0;
     g_sDeviceParams.crc = a_GetCrc((u8 *)pDevicePar, (sizeof(DEVICE_PARAMS)) - 2);
 
@@ -1797,5 +1794,221 @@ BOOL Device_WriteParamenters(u32 addr)
         }
     }
     FLASH_Lock();
+    return b;
+}
+
+void Device_AutoTask()
+{
+    DEVICE_OP *pOpInfo = NULL;
+    u8 num = 0;
+    
+    pOpInfo = &g_sDeviceOp;
+    Device_ResetOp();
+    Device_ResetOpTagInfo();
+
+	pOpInfo->op[num++] = DEVICE_OP_INVENTORY;
+
+    pOpInfo->op[num++] = DEVICE_OP_ANTISHAKE;
+
+    pOpInfo->op[num++] = DEVICE_OP_CHKDATE;
+
+    pOpInfo->antiShakeTick = 400;
+    pOpInfo->num = num;
+    a_SetState(pOpInfo->state, DEVICE_STAT_TX);
+}
+
+BOOL Device_Transm(DEVICE_OP *pOpInfo)
+{
+    DEVICE_OPTAGINFO *pOpTagInfo = NULL;
+    BOOL b = TRUE;
+    u8 op = 0;
+
+    op = pOpInfo->op[pOpInfo->index];
+    pOpTagInfo = &g_sDeviceOpTagInfo;
+    switch(op)
+    {
+        case DEVICE_OP_INVENTORY:
+            if(ISO14443A_GetUid(&pOpInfo->tag, ISO14443A_CMD_REQALL) == FM17XX_STAT_OK)
+            {
+                pOpInfo->tagNum = 1;
+                memcpy(&pOpTagInfo->tag, &pOpInfo->tag, sizeof(ISO14443A_UID));
+                pOpInfo->rlt = DEVICE_RESULT_OK;
+            }
+            else
+            {
+                pOpInfo->rlt = DEVICE_RESULT_ERR;
+                pOpInfo->tagNum = 0;
+            }
+            break;
+            case DEVICE_OP_ANTISHAKE:
+            pOpInfo->rlt = DEVICE_RESULT_OK;
+            break;
+            case DEVICE_OP_CHKDATE:
+            pOpInfo->rlt = DEVICE_RESULT_OK;
+            break;
+        /*case READER_OP_READSINGLEBLOCK:
+            pReaderOp->rlt = ISO15693_ReadBlock(pOpTagInfo->uid, 1, pReaderOp->imParams.blockAddr[pOpTagInfo->rbIndex], pReaderOp->block + (pOpTagInfo->rbIndex << 2), ISO15693_SIZE_BLOCK);
+            break;
+        case READER_OP_CHKDISH:
+            if(g_sDeviceParams.testMode == READER_TEST_ENABLE)
+            {
+                pReaderOp->rlt = ISO15693_ReadBlock(pOpTagInfo->uid, 1, READER_TEST_BLOCK_ADDR, pReaderOp->block, ISO15693_SIZE_BLOCK);
+            }
+            else
+            {
+                pReaderOp->rlt = ISO15693_ReadBlock(pOpTagInfo->uid, 1, pDish->block.addr[pOpTagInfo->rbIndex], pReaderOp->block, ISO15693_SIZE_BLOCK);
+            }
+            break;*/
+        default:
+            b = FALSE;
+            break;
+    }
+    Device_Delayms(1);
+    return b;
+}
+
+u8 Device_Receive(DEVICE_OP *pOpInfo)
+{
+    u8 op = 0;
+
+    op = pOpInfo->op[pOpInfo->index];
+    switch(op)
+    {
+        case DEVICE_OP_INVENTORY:
+        case DEVICE_OP_ANTISHAKE:
+        case DEVICE_OP_CHKDATE:
+        default:
+            break;
+    }
+    return pOpInfo->rlt;
+}
+
+
+u8 Device_SkipAntiShake(DEVICE_OP *pOpInfo)
+{
+    u8 i = 0;
+    for(i = 0; i < pOpInfo->num; i++)
+    {
+        if(pOpInfo->op[i] == DEVICE_OP_ANTISHAKE)
+        {
+            i++;
+            break;
+        }
+    }
+    return i;
+}
+
+
+BOOL Device_Step(DEVICE_OP *pOpInfo)
+{
+    BOOL b = TRUE;
+    DEVICE_OPTAGINFO *pOpTagInfo = NULL;
+    u8 op = 0;
+    u8 rlt = 0;
+
+    pOpTagInfo = &g_sDeviceOpTagInfo;
+    op = pOpInfo->op[pOpInfo->index];
+    rlt = pOpInfo->rlt;
+    switch(op)
+    {
+        case DEVICE_OP_INVENTORY:
+			if(rlt == DEVICE_RESULT_OK)
+			{
+				pOpTagInfo->repeat = 0;
+                pOpInfo->index++;
+                if(memcmp(&pOpInfo->tag, &pOpTagInfo->okTag, sizeof(ISO14443A_UID)) == 0)
+                {
+                    pOpTagInfo->writeDishOkTick = g_nSysTick;
+                    pOpInfo->bRepeatTag = TRUE;
+                    pOpInfo->index = pOpInfo->num;
+                    b = TRUE;
+                }
+                else if(memcmp(&pOpInfo->tag, &pOpTagInfo->shakeTag, sizeof(ISO14443A_UID)) == 0)
+                {
+                    pOpTagInfo->noShakeUidTimers = 0;
+                    if(pOpTagInfo->antiShakeTick + pOpInfo->antiShakeTick < g_nSysTick)
+                    {
+                        pOpTagInfo->bAntiShake = FALSE;  //清空防抖信息
+                        memset(&pOpTagInfo->shakeTag, 0, sizeof(ISO14443A_UID));
+                        pOpInfo->index = Device_SkipAntiShake(pOpInfo); //跳过防抖
+                    }
+                    else
+                    {
+                        b = FALSE; 
+                    }
+                }
+            }
+			else
+			{
+				if(pOpTagInfo->repeat >= DEVICE_OP_TAG_REPEAT)
+				{
+					pOpTagInfo->repeat = 0;
+					b = FALSE;
+					if(pOpTagInfo->bWriteDishOk)
+					{
+						//Reader_CheckRemoveDishTag(pReaderOp, pOpTagInfo);
+					}
+					if(pOpTagInfo->bAntiShake)                                  //多次不能读取shakeUID，清空shakeUidBuffer
+					{
+						//Reader_CheckRemoveAntiShakeTag(pOpTagInfo);
+					}
+				}
+                else
+                {
+                    pOpTagInfo->repeat++;
+                }
+			}
+			break;
+        case DEVICE_OP_ANTISHAKE: 
+            if(rlt == DEVICE_RESULT_OK)
+            {
+                pOpTagInfo->repeat = 0;
+                if(FALSE)
+                {
+                    pOpInfo->index++;
+                }
+                else
+                {
+                    memcpy(&pOpTagInfo->shakeTag, &pOpInfo->tag, sizeof(ISO14443A_UID));
+                    pOpTagInfo->noShakeUidTimers = 0;
+                    pOpTagInfo->bAntiShake = TRUE;
+                    pOpTagInfo->antiShakeTick = g_nSysTick;
+                    b = FALSE;  //防抖直接退出
+                }
+            }
+            else
+            {
+            	pOpTagInfo->repeat++;
+            	if(pOpTagInfo->repeat >= DEVICE_OP_TAG_REPEAT)
+            	{
+                    pOpTagInfo->repeat = 0;
+                    b = FALSE;
+            	}
+            }
+        break;
+        case DEVICE_OP_CHKDATE:
+            if(rlt == DEVICE_RESULT_OK)
+            {
+                pOpTagInfo->repeat = 0;
+                if(TRUE)
+                {
+                    pOpInfo->index++;
+                    b = TRUE;
+                }
+            }
+            else
+            {
+            	pOpTagInfo->repeat++;
+            	if(pOpTagInfo->repeat >= DEVICE_OP_TAG_REPEAT)
+            	{
+                    pOpTagInfo->repeat = 0;
+                    b = FALSE;
+            	}
+            }
+        break;
+        default:
+            b = FALSE;
+            break;
+    }
     return b;
 }

@@ -144,7 +144,7 @@ void SysTick_Handler(void)
     Uart_IncIdleTime(STICK_TIME_MS, g_sUartRcvFrame);
 }
 
-
+//-------------------
 void USART1_IRQHandler(void)
 {
     if(USART_GetITStatus(UART_PORT, USART_IT_RXNE) != RESET)
@@ -153,9 +153,32 @@ void USART1_IRQHandler(void)
         USART_ClearITPendingBit(UART_PORT, USART_IT_RXNE);
         byte = Uart_ReadByte();
 
-        Uart_ReceiveFrame(byte, &g_sUartRcvFrame);
+        Uart_ReceiveFrame(byte, g_sUartRcvFrame);
+        if(g_sUartRcvFrame.length == 1)
+        {
+            Uart_StartRcvTim();
+        }
+        else
+        {
+            Uart_ResetTimCnt();
+        }
+    }
+    else if(USART_GetITStatus(UART_PORT, USART_IT_ORE) != RESET)
+    {
+        Uart_ReadByte();
     }
     UART_PORT->SR &= (~0x3FF);
+}
+
+void TIM4_IRQHandler(void)
+{
+    if(UART_RCV_TIMER->SR & TIM_IT_Update)
+    {
+        UART_RCV_TIMER->SR = ~TIM_IT_Update;
+
+        Uart_StopRcvTim();
+        g_sUartRcvFrame.state = UART_STAT_TO;
+    }
 }
 
 /******************************************************************************/

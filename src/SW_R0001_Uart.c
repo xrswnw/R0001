@@ -2,3 +2,13 @@
 
 UART_RCVFRAME g_sUartRcvTempFrame = {0};
 UART_RCVFRAME g_sUartRcvFrame = {0};
+
+
+void Uart_Init(u32 bud)
+{
+    Uart_InitInterface(bud);
+    Uart_ConfigInt();
+    Uart_EnableInt(ENABLE, DISABLE);
+    Uart_InitTimer(bud);
+    Uart_StopRcvTim();
+}

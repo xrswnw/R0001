@@ -308,4 +308,98 @@ BOOL Device_WriteParamenters(u32 addr);
 BOOL Device_ReadParamenters(u32 addr); 
 
 //---------------------------------------//
+#define DEVICE_ISO15693_OP_SIZE_BLOCK                   8
+#define DEVICE_ISO15693_OP_BLOCK_MAX_NUM                3
+
+#define DEVICE_IM_OP_NUM                                8
+#define DEVICE_OP_MAX_NUM                               8
+
+typedef struct deviceImParams{
+    u8 mode;
+    u8 blockNum;
+    u8 blockAddr[DEVICE_IM_OP_NUM];
+    u8 key[ISO14443A_M1_KEY_LEN];
+}DEVICE_IMPARAMS;
+
+#define DEVICE_OP_INVENTORY                 1
+#define DEVICE_OP_ANTISHAKE                 2
+#define DEVICE_OP_READDATA                  3
+#define DEVICE_OP_CHKDATE                   4
+
+#define DEVICE_STAT_IDLE                    0x00000001
+#define DEVICE_STAT_TX                      0x00000002
+#define DEVICE_STAT_WAIT                    0x00000004
+#define DEVICE_STAT_RX                      0x00000008
+#define DEVICE_STAT_STEP                    0x00000010
+#define DEVICE_STAT_DELAY                   0x00000040
+    
+#define DEVICE_RESULT_OK                    0x00
+#define DEVICE_RESULT_ERR                   0x01
+
+#define DEVICE_OP_DELAY_TICK                60
+
+typedef struct deviceOperation{
+    DEVICE_IMPARAMS imParams;
+    u32 antiShakeTick;
+    u32 delay;
+    u32 state;
+    u8 tagNum;
+    ISO14443A_UID tag;
+    u8 block[DEVICE_ISO15693_OP_SIZE_BLOCK * DEVICE_ISO15693_OP_BLOCK_MAX_NUM];
+    u8 op[DEVICE_OP_MAX_NUM];
+    u8 step;
+    u8 num;
+    u8 index;
+    u8 cmd;
+    BOOL bRepeatTag;
+    u8 rlt;
+}DEVICE_OP;
+extern DEVICE_OP g_sDeviceOp;
+    
+#define Device_ResetOp()         do{\
+                                        g_sDeviceOp.state = DEVICE_STAT_IDLE;\
+                                        g_sDeviceOp.index = 0;\
+                                        g_sDeviceOp.num = 0;\
+                                        g_sDeviceOp.step = 0;\
+                                        g_sDeviceOp.bRepeatTag = FALSE;\
+                                        g_sDeviceOp.tagNum = 0; \
+                                        g_sDeviceOp.cmd = 0;\
+                                    }while(0)
+    
+#define DEVICE_OP_TAG_REPEAT            3
+typedef struct deviceTagInfo{
+    ISO14443A_UID okTag;
+    u8 bWriteDishOk;
+    u32 writeDishOkTick;
+    
+    ISO14443A_UID tag;
+    
+    u32 noSwitchDishTagTimer;
+    u8 bSwitchDishTag;
+    u8 switchMode;
+    u16 switchDishCode;
+    
+    ISO14443A_UID shakeTag;
+    u8 noShakeUidTimers;
+    u8 bAntiShake;
+    u32 antiShakeTick;
+
+    u8 rbIndex;
+    u8 wbIndex;
+    u8 repeat;
+    u16 wSofEnd;
+}DEVICE_OPTAGINFO;
+extern DEVICE_OPTAGINFO g_sDeviceOpTagInfo;
+    
+#define Device_ResetOpTagInfo()     do{\
+                                        g_sDeviceOpTagInfo.rbIndex = 0;\
+                                        g_sDeviceOpTagInfo.wbIndex = 0;\
+                                        g_sDeviceOpTagInfo.repeat = 0;\
+                                        }while(0)
+
+                                          
+void Device_AutoTask();
+BOOL Device_Transm(DEVICE_OP *pOpInfo);
+u8 Device_Receive(DEVICE_OP *pOpInfo);
+BOOL Device_Step(DEVICE_OP *pOpInfo);
 #endif

@@ -12,12 +12,13 @@
 
 
 #define UART_FLAG_RCV                   0x80
-#define UART_STAT_IDLE                  0x00
-#define UART_STAT_HEAD1                 0x81
-#define UART_STAT_HEAD2                 0x82
-#define UART_STAT_DATA                  0x84
-#define UART_STAT_TO                    0x05
-#define UART_STAT_END                   0x06
+
+#define UART_STAT_TO                    0x02
+#define UART_STAT_OVR                   0x01
+#define UART_STAT_END                   0x03
+#define UART_STAT_IDLE                  0x40
+#define UART_STAT_RCV                   0x80
+#define UART_STAT_MSK                   0xC0
 
 #define UART_FRAME_POS_HEAD1            0
 #define UART_FRAME_POS_HEAD2            1
@@ -62,9 +63,21 @@ typedef struct uartRcvFrame{
                                                     }\
                                                 }\
                                             }while(0)
+                                              
+#define Uart_ReceiveFrame(byte, rcvFrame) do{\
+                                                if((rcvFrame).state & UART_STAT_MSK)\
+                                                {\
+                                                    (rcvFrame).state |= UART_STAT_RCV;\
+                                                    (rcvFrame).buffer[(rcvFrame).length++] = (byte);\
+                                                    if((rcvFrame).length == UART_BUFFER_MAX_LEN)\
+                                                    {\
+                                                        (rcvFrame).state = UART_STAT_OVR;\
+                                                    }\
+                                                }\
+                                             }while(0)
   
 #define Uart_IsRcvFrame(rcvFrame)           (((rcvFrame).state == UART_STAT_TO || (rcvFrame).state == UART_STAT_END))
-void Uart_ReceiveFrame(u8 byte, UART_RCVFRAME *pRcvFrame);
+
 #define Uart_ResetFrame(rcvFrame)           (memset(&(rcvFrame), 0, sizeof(UART_RCVFRAME)))
 #define Uart_GetFrameCrc(p, len)            (*((u16 *)(p + len - 2)))
 #define Uart_GetFrameLength(p)              (((p)[UART_FRAME_POS_LEN]) + 3)

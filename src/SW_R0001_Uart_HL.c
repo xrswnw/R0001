@@ -34,6 +34,34 @@ void Uart_InitInterface(u32 baudrate)
 }
 
 
+void Uart_InitTimer(u32 baudrate)
+{
+    TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure = {0};
+    NVIC_InitTypeDef NVIC_InitStructure = {0};
+
+    if(baudrate == 9600)
+    {
+        TIM_TimeBaseStructure.TIM_Period = UART_RCV_TIM_9600;
+    }
+    else
+    {
+        TIM_TimeBaseStructure.TIM_Period = UART_RCV_TIM_9600M;
+    }
+    TIM_TimeBaseStructure.TIM_Prescaler = UART_RCV_TIM_PRESCALER;
+    TIM_TimeBaseStructure.TIM_ClockDivision = 0x0;
+    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+    TIM_TimeBaseInit(UART_RCV_TIMER, &TIM_TimeBaseStructure);
+
+    TIM_ITConfig(UART_RCV_TIMER, TIM_IT_Update, ENABLE);
+    TIM_Cmd(UART_RCV_TIMER, DISABLE);
+
+    NVIC_InitStructure.NVIC_IRQChannel = UART_RCV_TIMER_INT;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = INT_PRIORITY_UART_RX >> 2;
+  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = INT_PRIORITY_UART_RX >> 2;
+  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+
+  	NVIC_Init(&NVIC_InitStructure);
+}
 void Uart_ConfigInt(void)
 {
     NVIC_InitTypeDef NVIC_InitStructure = {0};

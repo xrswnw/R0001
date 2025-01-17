@@ -8,7 +8,7 @@ int main(void)
     {
         Sys_LedTask();
         Sys_UartTask();
-        Sys_ReaderTask();
+        Sys_DeviceTask();
     }
 }
 

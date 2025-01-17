@@ -1,8 +1,8 @@
 #include "SW_FM17xx_HL.h"
 
-const PORT_INF FM17XX_RST_COM       ={GPIOB, GPIO_Pin_0};
-const PORT_INF FM17XX_CS_COM        ={GPIOA, GPIO_Pin_4};
-const PORT_INF FM17XX_PORT_SPI       ={GPIOA, GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7};
+const PORT_INF FM17XX_RST_COM ={GPIOB, GPIO_Pin_0};
+const PORT_INF FM17XX_CS_COM ={GPIOA, GPIO_Pin_4};
+const PORT_INF FM17XX_PORT_SPI ={GPIOA, GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7};
 
 void FM17xx_InitInterface(void)
 {

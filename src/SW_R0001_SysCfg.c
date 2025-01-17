@@ -79,10 +79,10 @@ void Sys_CfgPeriphClk(FunctionalState state)
                            RCC_APB2Periph_GPIOB|
                            RCC_APB2Periph_GPIOC |
                            RCC_APB2Periph_AFIO |
-                           RCC_APB2Periph_SPI1 |
-                           RCC_APB2Periph_USART1, state);
+                           RCC_APB2Periph_SPI1, state);
 
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2 , state);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2 |
+                           RCC_APB1Periph_TIM4, state);
 }
 
 void Sys_CfgNVIC(void)
@@ -104,9 +104,9 @@ void Sys_CfgNVIC(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 }
 
-const PORT_INF SYS_RUNLED_COM       = {GPIOA, GPIO_Pin_11};
-const PORT_INF SYS_ALARMBUZZER_COM  = {GPIOA, GPIO_Pin_10};
-const PORT_INF SYS_ALARMLED_COM     = {GPIOB, GPIO_Pin_9};
+const PORT_INF SYS_RUNLED_COM       = {GPIOA, GPIO_Pin_14};
+const PORT_INF SYS_ALARMBUZZER_COM  = {GPIOB, GPIO_Pin_15};
+const PORT_INF SYS_ALARMLED_COM     = {GPIOA, GPIO_Pin_8};
 void Sys_CtrlIOInit(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure = {0};
@@ -149,10 +149,8 @@ void Sys_Init(void)
     FM17xx_InitInterface();
     
     Reader_Init();
-    
-   // Uart_InitInterface(Reader_GetUartBaudrate());
-   // Uart_ConfigInt();
-   // Uart_EnableInt(ENABLE, DISABLE);
+       
+    Uart_Init(UART_BAUDRARE);
 
     //SysTick 初始化 5ms
     STick_InitSysTick();
@@ -217,7 +215,7 @@ void Sys_LedTask(void)
 
 void Sys_UartTask(void)
 {
-    if(USART_GetFlagStatus(UART_PORT, USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE))
+      if(USART_GetFlagStatus(UART_PORT, USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE))
     {
         USART_ClearFlag(UART_PORT, USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE);
         Uart_EnableInt(DISABLE, DISABLE);
@@ -227,7 +225,7 @@ void Sys_UartTask(void)
     }
 
     //串口数据帧解析
-    /*if(Uart_IsRcvFrame(g_sUartRcvFrame))
+  if(Uart_IsRcvFrame(g_sUartRcvFrame))
     {
         u16 crc1 = 0, crc2 = 0;
 
@@ -244,36 +242,76 @@ void Sys_UartTask(void)
                 u8 cmd = 0;
                 cmd = g_sUartRcvTempFrame.buffer[UART_FRAME_POS_CMD];
                 g_sReaderRspFrame.com = READER_COM_UART;
-                txLen = Reader_ProcessFrame(g_sUartRcvTempFrame.buffer, g_sUartRcvTempFrame.index);
+                //txLen = Reader_ProcessFrame(g_sUartRcvTempFrame.buffer, g_sUartRcvTempFrame.index);
                 if(txLen > 0)
                 {
-                    if((cmd == RISO15693_CMD_DIROP && g_sReaderImParams.mode == READER_IM_MODE_UID && txLen > READER_RFRAME_DIROP_MIN_LEN) ||
-                       (cmd == RISO15693_CMD_DIROP && g_sReaderImParams.mode == READER_IM_MODE_RBLOCK && g_sReaderImParams.uidNum == 1) ||
-                       (cmd == RISO15693_CMD_READ_UID && txLen > READER_RFRAME_MIN_LEN) || 
-                       (cmd == RISO14443A_CMD_GET_UID && txLen > READER_RFRAME_MIN_LEN))
-                    {
-                        a_SetStateBit(g_nSysState, SYS_STAT_ALARMLED);
-                    }
                     a_SetStateBit(g_nSysState, SYS_STAT_UARTTX);
                 }
             }
         }
-    }*/
+    }
 
 
 }
 
-void Sys_ReaderTask(void)
+void Sys_DeviceTask()
 {
-    //if(g_sDeviceParamenter.controlLow.inventoryMode == READER_INVENTORY_AUTO)
+    if(a_CheckStateBit(g_sDeviceOp.state, DEVICE_STAT_IDLE))
     {
-        if(a_CheckStateBit(g_nSysState, SYS_STAT_AUTOUID))
+        FM17xx_OpenAntenna();
+        Sys_Delayms(2);
+        Device_AutoTask();
+    }
+
+    if(a_CheckStateBit(g_sDeviceOp.state, DEVICE_STAT_TX))
+    {
+        if(g_sDeviceOp.index < g_sDeviceOp.num)
         {
-            a_ClearStateBit(g_nSysState, SYS_STAT_AUTOUID);
-            if(Reader_AutoUid())
+            if(Device_Transm(&g_sDeviceOp))
             {
+                a_SetState(g_sDeviceOp.state, DEVICE_STAT_RX);
+            }
+        }
+    }
+    
+    if(a_CheckStateBit(g_sDeviceOp.state, DEVICE_STAT_RX))
+    {
+        Device_Receive(&g_sDeviceOp);
+        a_SetState(g_sDeviceOp.state, DEVICE_STAT_STEP);
+    }
+    
+    if(a_CheckStateBit(g_sDeviceOp.state, DEVICE_STAT_STEP))
+    {
+        BOOL b = FALSE;
+        b = Device_Step(&g_sDeviceOp);
+        if((!b) || (g_sDeviceOp.index >= g_sDeviceOp.num))
+        {
+            a_SetState(g_sDeviceOp.state, DEVICE_STAT_DELAY);
+            g_sDeviceOp.delay = g_nSysTick;
+            FM17xx_CloseAntenna();
+
+            if(g_sDeviceOp.index >= g_sDeviceOp.num && b == TRUE)       //操作成功
+            {
+                if(g_sDeviceOp.bRepeatTag == FALSE && g_sDeviceOpTagInfo.bSwitchDishTag == FALSE)
+                {
+                    g_sDeviceOpTagInfo.writeDishOkTick = g_nSysTick;
+                    g_sDeviceOpTagInfo.bWriteDishOk = TRUE;
+                    memcpy(&g_sDeviceOpTagInfo.okTag, &g_sDeviceOp.tag, sizeof(ISO14443A_UID));   //操作成功标签
+                }
                 a_SetStateBit(g_nSysState, SYS_STAT_ALARMLED);
             }
+        }
+        else
+        {
+            a_SetState(g_sDeviceOp.state, DEVICE_STAT_TX);
+        }
+    }
+    
+    if(a_CheckStateBit(g_sDeviceOp.state, DEVICE_STAT_DELAY))
+    {
+        if(g_sDeviceOp.delay + DEVICE_OP_DELAY_TICK < g_nSysTick)
+        {
+            a_SetState(g_sDeviceOp.state, DEVICE_STAT_IDLE);
         }
     }
 }

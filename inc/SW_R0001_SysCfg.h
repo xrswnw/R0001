@@ -26,8 +26,8 @@ extern const PORT_INF SYS_ALARMLED_COM;
 #define Sys_AlarmLedOff()       SYS_ALARMLED_COM.Port->BSRR = SYS_ALARMLED_COM.Pin
 
 extern const PORT_INF SYS_ALARMBUZZER_COM;
-#define Sys_AlarmBuzOn()        SYS_ALARMBUZZER_COM.Port->BRR = SYS_ALARMBUZZER_COM.Pin
-#define Sys_AlarmBuzOff()       SYS_ALARMBUZZER_COM.Port->BSRR = SYS_ALARMBUZZER_COM.Pin
+#define Sys_AlarmBuzOn()        SYS_ALARMBUZZER_COM.Port->BSRR = SYS_ALARMBUZZER_COM.Pin
+#define Sys_AlarmBuzOff()       SYS_ALARMBUZZER_COM.Port->BRR = SYS_ALARMBUZZER_COM.Pin
 
 void Sys_Delay5ms(u32 n);
 void Sys_CfgClock(void);
@@ -42,4 +42,5 @@ void Sys_Init(void);
 void Sys_LedTask(void);
 void Sys_ReaderTask(void);
 void Sys_UartTask(void);
+void Sys_DeviceTask();
 #endif

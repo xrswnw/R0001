@@ -7,4 +7,6 @@ extern UART_RCVFRAME g_sUartRcvTempFrame;
 extern UART_RCVFRAME g_sUartRcvFrame;
 
 
+
+void Uart_Init(u32 bud);
 #endif
