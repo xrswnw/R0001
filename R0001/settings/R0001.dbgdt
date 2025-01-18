@@ -950,7 +950,7 @@
             <IarPane-34104>
                 <expressions>
                     <item>g_sDeviceBootParamenter</item>
-                    <item></item>
+                    <item />
                 </expressions>
                 <col-names>
                     <item>Expression</item>
@@ -1038,7 +1038,7 @@
                 <expressions>
                     <item>pOpInfo</item>
                     <item>pOpTagInfo</item>
-                    <item></item>
+                    <item />
                 </expressions>
                 <col-names>
                     <item>Expression</item>

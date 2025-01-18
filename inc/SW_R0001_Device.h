@@ -296,35 +296,52 @@ extern DEVICE_BOOTPARAMS g_sDeviceBootParamenter;
 BOOL Device_ReadBootParamenter(u32 addr);
 BOOL Device_WriteBootParamenter(u32 addr);
 
-    
+#define DEVICE_PAR_START                    (0x0800E800)
+#define DEVICE_PAR_BACK_START               (0x0800E000)
 
+#define DEVICE_PAR_AUTH_BLOCK_NUM               2
+#define DEVICE_PAR_AUTH_BLOCK_DATE_LEN          8
 typedef struct deviceParams{
     u8 workMode;
     u16 addr;
+    u8 blockAddr;
+    u8 blockDate[DEVICE_PAR_AUTH_BLOCK_NUM][DEVICE_PAR_AUTH_BLOCK_DATE_LEN];
+    u8 key[ISO14443A_M1_KEY_LEN];
     u16 crc;
 }DEVICE_PARAMS;
-
+extern DEVICE_PARAMS g_sDeviceParams;
 BOOL Device_WriteParamenters(u32 addr);
 BOOL Device_ReadParamenters(u32 addr); 
+
+//------------------------------------IO-------------------------
+extern const PORT_INF EXPORT_CH1_PORT;
+#define Device_ExportCh1High()         EXPORT_CH1_PORT.Port->BSRR = EXPORT_CH1_PORT.Pin
+#define Device_ExportCh1Low()          EXPORT_CH1_PORT.Port->BRR = EXPORT_CH1_PORT.Pin
+
+extern const PORT_INF EXPORT_CH2_PORT;
+#define Device_ExportCh2High()         EXPORT_CH2_PORT.Port->BSRR = EXPORT_CH2_PORT.Pin
+#define Device_ExportCh2Low()          EXPORT_CH2_PORT.Port->BRR = EXPORT_CH2_PORT.Pin
 
 //---------------------------------------//
 #define DEVICE_ISO15693_OP_SIZE_BLOCK                   8
 #define DEVICE_ISO15693_OP_BLOCK_MAX_NUM                3
 
-#define DEVICE_IM_OP_NUM                                8
+#define DEVICE_IM_OP_NUM                                4
 #define DEVICE_OP_MAX_NUM                               8
 
 typedef struct deviceImParams{
     u8 mode;
     u8 blockNum;
     u8 blockAddr[DEVICE_IM_OP_NUM];
+    u8 blockDate[DEVICE_PAR_AUTH_BLOCK_NUM][DEVICE_PAR_AUTH_BLOCK_DATE_LEN];
     u8 key[ISO14443A_M1_KEY_LEN];
 }DEVICE_IMPARAMS;
 
 #define DEVICE_OP_INVENTORY                 1
 #define DEVICE_OP_ANTISHAKE                 2
-#define DEVICE_OP_READDATA                  3
-#define DEVICE_OP_CHKDATE                   4
+#define DEVICE_OP_AUTH                      3
+#define DEVICE_OP_READ                      4
+#define DEVICE_OP_PROOF                     5
 
 #define DEVICE_STAT_IDLE                    0x00000001
 #define DEVICE_STAT_TX                      0x00000002
@@ -345,13 +362,15 @@ typedef struct deviceOperation{
     u32 state;
     u8 tagNum;
     ISO14443A_UID tag;
-    u8 block[DEVICE_ISO15693_OP_SIZE_BLOCK * DEVICE_ISO15693_OP_BLOCK_MAX_NUM];
+    u8 block[DEVICE_PAR_AUTH_BLOCK_DATE_LEN];
     u8 op[DEVICE_OP_MAX_NUM];
     u8 step;
     u8 num;
     u8 index;
     u8 cmd;
+    u8 proofFlag;
     BOOL bRepeatTag;
+    BOOL bProof;
     u8 rlt;
 }DEVICE_OP;
 extern DEVICE_OP g_sDeviceOp;
@@ -362,6 +381,7 @@ extern DEVICE_OP g_sDeviceOp;
                                         g_sDeviceOp.num = 0;\
                                         g_sDeviceOp.step = 0;\
                                         g_sDeviceOp.bRepeatTag = FALSE;\
+                                        g_sDeviceOp.bProof = FALSE;\
                                         g_sDeviceOp.tagNum = 0; \
                                         g_sDeviceOp.cmd = 0;\
                                     }while(0)
@@ -369,8 +389,8 @@ extern DEVICE_OP g_sDeviceOp;
 #define DEVICE_OP_TAG_REPEAT            3
 typedef struct deviceTagInfo{
     ISO14443A_UID okTag;
-    u8 bWriteDishOk;
-    u32 writeDishOkTick;
+    BOOL bTagOk;
+    u32 opOkTick;
     
     ISO14443A_UID tag;
     
@@ -402,4 +422,29 @@ void Device_AutoTask();
 BOOL Device_Transm(DEVICE_OP *pOpInfo);
 u8 Device_Receive(DEVICE_OP *pOpInfo);
 BOOL Device_Step(DEVICE_OP *pOpInfo);
+
+
+
+#define DEVICE_RSPFRAME_LEN             256
+
+typedef struct deviceRspFrame{
+    u8 len;
+    u8 buffer[DEVICE_RSPFRAME_LEN];
+    u8 flag;
+    u8 err;
+    u16 destAddr;
+    u8 cmd;
+    u8 com;
+}DEVICE_RSPFRAME;
+extern DEVICE_RSPFRAME g_sDevicerRspFrame;
+
+u16 Device_ProcessUartFrame(u8 *pFrame, u16 len);
+u16 Device_ResponseFrame(u8 *pParam, u16 len, DEVICE_RSPFRAME *pRspFrame);
+void Device_Init(void);
+void Device_Delayms(u32 n);
+
+
+
+#define Device_ClearOkTag()         {memset(&g_sDeviceOpTagInfo.okTag, 0, sizeof(ISO14443A_UID)); g_sDeviceOpTagInfo.bTagOk = FALSE;}while(0)
+void Device_CheckRemoveokTag(DEVICE_OP *pOpInfo, DEVICE_OPTAGINFO *pOpTagInfo);
 #endif

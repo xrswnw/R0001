@@ -82,6 +82,24 @@ typedef struct uartRcvFrame{
 #define Uart_GetFrameCrc(p, len)            (*((u16 *)(p + len - 2)))
 #define Uart_GetFrameLength(p)              (((p)[UART_FRAME_POS_LEN]) + 3)
 
+                                               
+                                               
+                                               
+                                               
+                                               
+                                               
+                                               
+                                               
+                                               
+//--------------------------------cmd
+
+#define UART_CMD_RESET                    0x04
+#define UART_CMD_GET_CPUID                0xF8
+#define UART_CMD_GET_VERSION              0xF7
+                                               
+                                               
+                                               
+                                               
 
 BOOL Uart_CheckSpecialFrame(UART_RCVFRAME *pRcvFrame);
 void Uart_ReceiveBootFrame(u8 byte, UART_RCVFRAME *pRcvFrame);

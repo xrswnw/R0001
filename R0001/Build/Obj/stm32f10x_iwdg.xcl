@@ -1,24 +1,24 @@
-"E:\AnyID\Periph\Git\R0001\STM32_lib_V3.3\src\stm32f10x_iwdg.c"
+"E:\AnyID\Git\R0001\R0001\STM32_lib_V3.3\src\stm32f10x_iwdg.c"
 -std=c11
 -ferror-limit=0
 -fbracket-depth=512
 -MD
 -MF
-E:\AnyID\Periph\Git\R0001\R0001\Build\Obj\stm32f10x_iwdg.pbi.dep
+E:\AnyID\Git\R0001\R0001\R0001\Build\Obj\stm32f10x_iwdg.pbi.dep
 -o
 stm32f10x_iwdg.pbi
 -I
-E:\AnyID\Periph\Git\R0001\STM32_lib_V3.3\src
+E:\AnyID\Git\R0001\R0001\STM32_lib_V3.3\src
 -I
-E:\AnyID\Periph\Git\R0001\R0001\..
+E:\AnyID\Git\R0001\R0001\R0001\..
 -I
-E:\AnyID\Periph\Git\R0001\R0001\..\inc
+E:\AnyID\Git\R0001\R0001\R0001\..\inc
 -I
-E:\AnyID\Periph\Git\R0001\R0001\..\STM32_lib_V3.3\inc
+E:\AnyID\Git\R0001\R0001\R0001\..\STM32_lib_V3.3\inc
 -I
-E:\AnyID\Periph\Git\R0001\R0001\..\STM32_lib_V3.3\startup
+E:\AnyID\Git\R0001\R0001\R0001\..\STM32_lib_V3.3\startup
 -I
-E:\AnyID\Periph\Git\R0001\R0001\..\Otr_Lib\inc
+E:\AnyID\Git\R0001\R0001\R0001\..\Otr_Lib\inc
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.3\arm\CMSIS\Core\Include
 -I
@@ -28,15 +28,15 @@ C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.3\arm\inc
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.3\arm\inc\c
 -I
-E:\AnyID\Periph\Git\R0001
+E:\AnyID\Git\R0001\R0001
 -I
-E:\AnyID\Periph\Git\R0001\inc
+E:\AnyID\Git\R0001\R0001\inc
 -I
-E:\AnyID\Periph\Git\R0001\STM32_lib_V3.3\inc
+E:\AnyID\Git\R0001\R0001\STM32_lib_V3.3\inc
 -I
-E:\AnyID\Periph\Git\R0001\STM32_lib_V3.3\startup
+E:\AnyID\Git\R0001\R0001\STM32_lib_V3.3\startup
 -I
-E:\AnyID\Periph\Git\R0001\Otr_Lib\inc
+E:\AnyID\Git\R0001\R0001\Otr_Lib\inc
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.3\arm\CMSIS\Core\Include
 -I

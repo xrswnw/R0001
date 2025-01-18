@@ -138,7 +138,7 @@ void SysTick_Handler(void)
 
     if(g_nSysTick % 51 == 0)
     {
-        a_SetStateBit(g_nSysState, SYS_STAT_RUNLED | SYS_STAT_AUTOUID);
+        a_SetStateBit(g_nSysState, SYS_STAT_RUNLED);
     }
    
     Uart_IncIdleTime(STICK_TIME_MS, g_sUartRcvFrame);

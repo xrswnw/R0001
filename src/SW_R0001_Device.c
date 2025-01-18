@@ -6,161 +6,8 @@ READER_DEVICE_PARAMETER g_sDeviceParamenter = {0};
 READER_RSPFRAME g_sReaderRspFrame = {0};
 ISO14443A_UID g_sReaderISO14443AUid = {0};
 
-const u8 DEVICE_VERSION[DEVICE_VERSION_SIZE]@0x08005000 = "R0001 25011800 R001-SCH-MB-250100";
-const u8 DEVICE_HARD_TYPE[DEVICE_VERSION_SIZE]@0x08005080 = "R001-SCH-MB-250100";
-void Reader_Delayms(u32 n)
-{
-    n *= 0x3800;
-    n++;
-    while(n--);
-}
-
-void Reader_Init(void)
-{
-    FM17xx_Reset();
-    ISO14443A_Init();
-    FM17xx_OpenAntenna() ;
-
-    if(Device_ReadBootParamenter(DEVICE_APP_PAR_START) == FALSE || 
-    (g_sDeviceBootParamenter.appState != DEVICE_BOOT_APP_OK) ||
-    Device_ReadBootParamenter(DEVICE_APPPAR_BACK_START) == FALSE)
-    {
-        g_sDeviceBootParamenter.appState = DEVICE_BOOT_APP_OK;
-        Device_WriteBootParamenter(DEVICE_APP_PAR_START);
-        Device_WriteBootParamenter(DEVICE_APPPAR_BACK_START);
-    }
-    u8 value = 0;
-    
-    value = DEVICE_VERSION[21] + DEVICE_HARD_TYPE[4];
-    
-    
-    a_SetState(g_sDeviceOp.state, DEVICE_STAT_IDLE);
-}
 
 
-
-
-u32 Reader_GetUartBaudrate(void)
-{
-    if(g_sDeviceParamenter.controlLow.baudRate == READER_BAUDRATE9600)
-    {
-        return 9600;
-    }
-    else if(g_sDeviceParamenter.controlLow.baudRate == READER_BAUDRATE115200)
-    {
-        return 115200;
-    }
-    else
-    {
-        return 38400;
-    }
-}
-
-void Reader_ReadDeviceConfig(void)                                         //OK
-{
-    BOOL b = FALSE;
-
-    b = FRam_ReadBuffer(FRAME_SYS_INFO_ADDR, sizeof(READER_DEVICE_PARAMETER), (u8 *)(&g_sDeviceParamenter));
-    if(b)
-    {
-        u16 crc1 = 0, crc2 = 0;
-
-        crc1 = a_GetCrc((u8 *)(&g_sDeviceParamenter), (sizeof(READER_DEVICE_PARAMETER)) - 2);
-        crc2 = g_sDeviceParamenter.crc;
-
-        //检测参数是否正确，如果不正确，使用默认参数操作
-        if(crc1 != crc2)
-        {
-            b = FALSE;
-        }
-    }
-
-    if(b == FALSE)
-    {
-        memset(&g_sDeviceParamenter, 0, sizeof(g_sDeviceParamenter));
-
-        g_sDeviceParamenter.workMode = READER_TYPE_ISO15693 | READER_MODE_INVENTORY;
-        g_sDeviceParamenter.addr = 0x0001;
-        g_sDeviceParamenter.controlLow.baudRate = READER_BAUDRATE38400;
-        g_sDeviceParamenter.controlLow.tagQuiet = READER_TAG_QUIET;
-        g_sDeviceParamenter.controlLow.inventoryMode = READER_INVENTORY_TRIGGER;
-        g_sDeviceParamenter.controlLow.uidTransMode = READER_UID_POSITIVE;
-        g_sDeviceParamenter.controlLow.afiControl = READER_AFI_DISABLE;
-
-	//open bell
-	g_sDeviceParamenter.controlHigh.buzzer = READER_BUZZER_ENABLE;
-        g_sDeviceParamenter.controlHigh.rfu = 0x00;
-	//
-	g_sDeviceParamenter.afiValue = 0x01;
-	//open RF
-        g_sDeviceParamenter.rfCtrl = READER_RF_CLOSE;
-
-        Reader_WriteDeviceConfig();
-    }
-    g_sDeviceParamenter.rfCtrl = READER_RF_CLOSE;
-    
-    if((g_sFramBootParamenter.appState != FRAM_BOOT_APP_OK) ||
-       (g_sFramBootParamenter.br != g_sDeviceParamenter.controlLow.baudRate) ||
-       (g_sFramBootParamenter.addr != g_sDeviceParamenter.addr))
-    {
-        g_sFramBootParamenter.appState = FRAM_BOOT_APP_OK;
-        g_sFramBootParamenter.br = g_sDeviceParamenter.controlLow.baudRate;
-        g_sFramBootParamenter.addr = g_sDeviceParamenter.addr;
-        Fram_WriteBootParamenter();
-    }
-}
-
-BOOL Reader_WriteDeviceConfig(void)
-{
-    BOOL b = FALSE;
-
-    g_sDeviceParamenter.crc = 0;
-    g_sDeviceParamenter.crc = a_GetCrc((u8 *)(&g_sDeviceParamenter), (sizeof(READER_DEVICE_PARAMETER)) - 2);
-
-    b = FRam_WriteBuffer(FRAME_SYS_INFO_ADDR, sizeof(READER_DEVICE_PARAMETER), (u8 *)(&g_sDeviceParamenter));
-
-    return b;
-}
-
-u8 Reader_ResponseFrame(u8 *pParam, u8 len, READER_RSPFRAME *pOpResult)
-{
-    u8 pos = 0;
-    u16 crc = 0;
-
-    pOpResult->buffer[pos++] = 0x7E; // frame head first byte
-    pOpResult->buffer[pos++] = 0x55; // frame haed second byte
-    pOpResult->buffer[pos++] = 0xFF;   // length
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 0) & 0xFF;
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 8) & 0xFF;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >> 0) & 0xff;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >>8) & 0xFF;
-    pOpResult->buffer[pos++] = READER_FRAME_RESPONSE_FLAG;
-    pOpResult->buffer[pos++] = pOpResult->cmd;               // cmd
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;     // RFU
-
-    if(pOpResult->err == READER_RSPFRAME_FLAG_OK)
-    {
-        a_memcpy(pParam, pOpResult->buffer + pos, len);
-    }
-    else
-    {
-        a_memset(pOpResult->buffer + pos, 0, len);
-    }
-    pos += len;
-
-    pOpResult->buffer[pos++] = pOpResult->flag;
-    pOpResult->buffer[pos++] = pOpResult->err;
-
-    pOpResult->buffer[2] = pos - 3 + 2; //减去帧头7E 55 LEN 的三个字节，加上CRC的两个字节
-
-    crc = a_GetCrc(pOpResult->buffer + 2, pos - 2); //从LEN开始计算crc
-    pOpResult->buffer[pos++] = crc & 0xFF;
-    pOpResult->buffer[pos++] = (crc >> 8) & 0xFF;
-
-    g_sReaderRspFrame.len = pos;
-
-    return pos;
-}
 
 u8 Reader_GetCfgRspFrame(READER_RSPFRAME *pOpResult)
 {
@@ -195,169 +42,6 @@ u8 Reader_GetCfgRspFrame(READER_RSPFRAME *pOpResult)
 
     return pos;
 }
-
-/*u8 RISO15693_DirOpRspFrame(READER_IMPARAMS *pImInfo, READER_RSPFRAME *pOpResult)
-{
-    u16 pos = 0;
-    u16 crc = 0;
-
-    pOpResult->buffer[pos++] = 0x7E; // frame head first byte
-    pOpResult->buffer[pos++] = 0x55; // frame haed second byte
-    pOpResult->buffer[pos++] = 0x00;   // length
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 0) & 0xFF;
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 8) & 0xFF;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >> 0) & 0xff;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >> 8) & 0xFF;
-    pOpResult->buffer[pos++] = READER_FRAME_RESPONSE_FLAG;
-    pOpResult->buffer[pos++] = RISO15693_CMD_DIROP;          // cmd
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;       // RFU
-
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;
-
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;       //rfu
-    pOpResult->buffer[pos++] = pImInfo->mode;
-    pOpResult->buffer[pos++] = pImInfo->blockNum;
-    if(pImInfo->blockNum < READER_IM_BLOCK_OLD_NUM)
-    {
-        memcpy(pOpResult->buffer + pos, pImInfo->blockAddr, READER_IM_BLOCK_OLD_NUM);
-        pos += READER_IM_BLOCK_OLD_NUM;
-    }
-    else
-    {
-        memcpy(pOpResult->buffer + pos, pImInfo->blockAddr, pImInfo->blockNum);
-        pos += pImInfo->blockNum;
-    }
-
-    pOpResult->buffer[pos++] = pImInfo->uidNum;                             //num
-    if(pImInfo->uidNum)
-    {
-        memcpy(pOpResult->buffer + pos, pImInfo->uid, ISO15693_SIZE_UID);   //uid
-        pos += ISO15693_SIZE_UID;
-        memset(pOpResult->buffer + pos, READER_IM_OP_OK, pImInfo->uidNum);  //result
-        pos += pImInfo->uidNum;
-        if(pImInfo->blockNum > 0)                                           //block
-        {
-            memcpy(pOpResult->buffer + pos, pImInfo->block, pImInfo->uidNum * pImInfo->blockNum * ISO15693_SIZE_BLOCK);
-            pos += pImInfo->uidNum * pImInfo->blockNum * ISO15693_SIZE_BLOCK;
-        }
-    }
-
-    pOpResult->buffer[10] = ((pos - 12) >> 0) & 0xFF;
-    pOpResult->buffer[11] = ((pos - 12) >> 8) & 0xFF;
-
-    crc = a_GetCrc(pOpResult->buffer + 2, pos - 2); //从LEN开始计算crc
-    pOpResult->buffer[pos++] = crc & 0xFF;
-    pOpResult->buffer[pos++] = (crc >> 8) & 0xFF;
-
-    g_sReaderRspFrame.len = pos;
-
-    return pos;
-}
-
-u8 RISO15693_DirWriteTagRspFrame(READER_IMPARAMS *pImInfo, READER_RSPFRAME *pOpResult)
-{
-    u16 pos = 0;
-    u16 crc = 0;
-
-    pOpResult->buffer[pos++] = 0x7E; // frame head first byte
-    pOpResult->buffer[pos++] = 0x55; // frame haed second byte
-    pOpResult->buffer[pos++] = 0x00;   // length
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 0) & 0xFF;
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 8) & 0xFF;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >> 0) & 0xff;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >> 8) & 0xFF;
-    pOpResult->buffer[pos++] = READER_FRAME_RESPONSE_FLAG;
-    pOpResult->buffer[pos++] = RISO15693_CMD_DIRWB;          // cmd
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;       // RFU
-
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;
-
-    memcpy(pOpResult->buffer + pos, pImInfo->result, pImInfo->blockNum);
-    pos += pImInfo->blockNum;
-
-    pOpResult->buffer[10] = ((pos - 12) >> 0) & 0xFF;
-    pOpResult->buffer[11] = ((pos - 12) >> 8) & 0xFF;
-
-    crc = a_GetCrc(pOpResult->buffer + 2, pos - 2); //从LEN开始计算crc
-    pOpResult->buffer[pos++] = crc & 0xFF;
-    pOpResult->buffer[pos++] = (crc >> 8) & 0xFF;
-
-    g_sReaderRspFrame.len = pos;
-
-    return pos;
-}*/
-
-/*u8 RISO15693_GetUidRspFrame(u8 *pUid, u8 num, READER_RSPFRAME *pOpResult)
-{
-    u8 pos = 0;
-    u16 crc = 0;
-    u8 i = 0;
-
-    pOpResult->buffer[pos++] = 0x7E; // frame head first byte
-    pOpResult->buffer[pos++] = 0x55; // frame haed second byte
-    pOpResult->buffer[pos++] = 0xFF;   // length
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 0) & 0xFF;
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 8) & 0xFF;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >> 0) & 0xff;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >>8) & 0xFF;
-    pOpResult->buffer[pos++] = READER_FRAME_RESPONSE_FLAG;
-    pOpResult->buffer[pos++] = pOpResult->cmd;               // cmd
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;     // RFU
-
-    for(i = 0; i < num; i++)
-    {
-        memcpy(pOpResult->buffer + pos, pUid + i * ISO15693_SIZE_UID, ISO15693_SIZE_UID);
-        pos += ISO15693_SIZE_UID;
-        pOpResult->buffer[pos++] = 0xAA;
-    }
-    pOpResult->buffer[pos++] = 0x00;
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;
-
-    pOpResult->buffer[2] = pos - 3 + 2; //减去帧头7E 55 LEN 的三个字节，加上CRC的两个字节
-
-    crc = a_GetCrc(pOpResult->buffer + 2, pos - 2); //从LEN开始计算crc
-    pOpResult->buffer[pos++] = crc & 0xFF;
-    pOpResult->buffer[pos++] = (crc >> 8) & 0xFF;
-
-    g_sReaderRspFrame.len = pos;
-
-    return pos;
-}
-
-u8 RISO15693_GetTagInfoRspFrame(u8 *pParam, u8 len, READER_RSPFRAME *pOpResult)
-{
-    u8 pos = 0;
-    u16 crc = 0;
-
-    pOpResult->buffer[pos++] = 0x7E; // frame head first byte
-    pOpResult->buffer[pos++] = 0x55; // frame haed second byte
-    pOpResult->buffer[pos++] = 0xFF;   // length
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 0) & 0xFF;
-    pOpResult->buffer[pos++] = (g_sDeviceParamenter.addr >> 8) & 0xFF;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >> 0) & 0xff;
-    pOpResult->buffer[pos++] = (pOpResult->destAddr >>8) & 0xFF;
-    pOpResult->buffer[pos++] = READER_FRAME_RESPONSE_FLAG;
-    pOpResult->buffer[pos++] = pOpResult->cmd;               // cmd
-    pOpResult->buffer[pos++] = READER_FRAME_PARAM_RFU;     // RFU
-
-    pOpResult->buffer[pos++] = READER_RSPFRAME_FLAG_OK;
-    pOpResult->buffer[pos++] = READER_OPTAG_RESPONSE_NOERR;
-
-    memcpy(pOpResult->buffer + pos, pParam, len);
-    pos += len;
-
-    pOpResult->buffer[2] = pos - 3 + 2; //减去帧头7E 55 LEN 的三个字节，加上CRC的两个字节
-
-    crc = a_GetCrc(pOpResult->buffer + 2, pos - 2); //从LEN开始计算crc
-    pOpResult->buffer[pos++] = crc & 0xFF;
-    pOpResult->buffer[pos++] = (crc >> 8) & 0xFF;
-
-    g_sReaderRspFrame.len = pos;
-
-    return pos;
-}*/
 
 u8 RISO14443A_GetUidRspFrame(ISO14443A_UID *pISO14443AUid, READER_RSPFRAME *pOpResult)
 {
@@ -402,7 +86,6 @@ u8 Reader_AutoUid(void)
 {
     u8 num = 0;
     FM17xx_OpenAntenna();
-    Reader_Delayms(10); //6
     /*if((g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693)
     {
         //num = ISO15693_Inventory(g_sDeviceParamenter.controlLow.afiControl, g_sDeviceParamenter.afiValue, g_aReaderISO15693Uid);
@@ -438,20 +121,7 @@ u8 Reader_AutoUid(void)
 }
 
 /*
-u8 Reader_GetErrorType(u8 err)
-{
-    u8 flag = READER_OPTAG_RESPONSE_TAGERR;
-    if(err == RC663_STAT_TIMEOUT)
-    {
-        flag = READER_OPTAG_RESPONSE_NORSP;
-    }
-    else if(err == RC663_STAT_CRC_ERROR)
-    {
-        flag = READER_OPTAG_RESPONSE_CRCERR;
-    }
 
-    return flag;
-}
 
 u8 g_aTempBuffer[UART_BUFFER_MAX_LEN] = {0};
 u8 Reader_ProcessFrame(u8 *pFrame, u8 len)
@@ -478,473 +148,6 @@ u8 Reader_ProcessFrame(u8 *pFrame, u8 len)
     paramsLen = len - READER_FRAME_MIN_LEN;
     switch(cmd)
     {
-        case READER_CMD_SET_CFG:  //写系统工作参数
-            if(paramsLen == 6)
-            {
-                temp = g_sDeviceParamenter.controlLow.baudRate;
-                //设备类型不同需要重新初始化设备
-                g_sDeviceParamenter.workMode = pFrame[UART_FRAME_POS_PAR + 0];  //？？
-                Reader_Init();
-                g_sDeviceParamenter.addr = *((u16 *)(pFrame + UART_FRAME_POS_PAR + 1));
-                *((u8 *)(&g_sDeviceParamenter.controlLow)) = pFrame[UART_FRAME_POS_PAR + 3];
-                *((u8 *)(&g_sDeviceParamenter.controlHigh)) = pFrame[UART_FRAME_POS_PAR + 4];
-                g_sDeviceParamenter.afiValue = pFrame[UART_FRAME_POS_PAR + 5];
-
-                Reader_WriteDeviceConfig();
-                //波特率不同需要重新初始化串口
-                if(temp != g_sDeviceParamenter.controlLow.baudRate)
-                {
-                    Uart_EnableInt(DISABLE, DISABLE);
-                    Uart_InitInterface(Reader_GetUartBaudrate());//
-                    Uart_EnableInt(ENABLE, DISABLE);
-                    
-                    R485_EnableInt(DISABLE, DISABLE);
-                    R485_InitInterface(Reader_GetUartBaudrate());//
-                    R485_EnableInt(ENABLE, DISABLE);
-                }
-
-                g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case READER_CMD_GET_CFG:  //读系统工作参数
-            if(paramsLen == 1)
-            {
-                g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                g_sReaderRspFrame.len = Reader_GetCfgRspFrame(&g_sReaderRspFrame);
-            }
-            break;
-        case READER_CMD_RF_CTRL:  //射频控制
-            if(paramsLen == 2)
-            {
-                u8 ctrl = 0;
-                ctrl = pFrame[UART_FRAME_POS_PAR + 0];
-                if(ctrl == READER_RF_CLOSE)
-                {
-                    if(g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-                    {
-                        FM17xx_CloseAntenna();
-                        g_sDeviceParamenter.rfCtrl = READER_RF_CLOSE;
-                    }
-                }
-                else if(ctrl == READER_RF_OPEN)
-                {
-                    FM17xx_OpenAntenna();
-                    g_sDeviceParamenter.rfCtrl = READER_RF_OPEN;
-                }
-                else if(ctrl == READER_RF_RESET)
-                {
-                    FM17xx_CloseAntenna();
-                    Reader_Delayms(20);
-                    FM17xx_OpenAntenna();
-                    g_sDeviceParamenter.rfCtrl = READER_RF_OPEN;
-                }
-                g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case READER_CMD_GET_VERSION:  //读取版本号
-            g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-            g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-            g_sReaderRspFrame.len = Reader_ResponseFrame((u8 *)READER_VERSION, READER_VERSION_SIZE, &g_sReaderRspFrame);
-            break;
-        case READER_CMD_GET_CPUID:
-            if(paramsLen == 0)
-            {
-                g_sReaderRspFrame.len = Reader_ResponseFrame((u8 *)STM32_CPUID_ADDR, STM32_CPUID_LEN, &g_sReaderRspFrame);
-            }
-            break;
-        case READER_CMD_RESET:
-            if(paramsLen == 0)
-            {
-                g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case RISO15693_CMD_DIROP:  //ISO15693读数据块
-            if(paramsLen > 1)
-            {
-                BOOL bOkParams = FALSE;
-
-                g_sReaderImParams.uidNum = 0;
-                memset(g_sReaderImParams.blockAddr, 0, READER_IM_BLOCK_NUM);
-
-                g_sReaderImParams.mode = pFrame[UART_FRAME_POS_PAR + 1];    //0-rfu 1-mode 2-num
-                g_sReaderImParams.blockNum = pFrame[UART_FRAME_POS_PAR + 2];
-                if(g_sReaderImParams.mode == READER_IM_MODE_UID)
-                {
-                    bOkParams = TRUE;
-                    g_sReaderImParams.blockNum = 0;
-                }
-                else if(g_sReaderImParams.mode == READER_IM_MODE_RBLOCK && g_sReaderImParams.blockNum <= READER_IM_BLOCK_NUM)
-                {
-                    bOkParams = TRUE;
-                    if(g_sReaderImParams.blockNum == 0)
-                    {
-                        g_sReaderImParams.mode = READER_IM_MODE_UID;
-                    }
-                    else
-                    {
-                        memcpy(g_sReaderImParams.blockAddr, pFrame + UART_FRAME_POS_PAR + 3, g_sReaderImParams.blockNum);
-                    }
-                }
-                if(bOkParams)
-                {
-                    RC663_CloseAntenna();
-                    Reader_Delayms(1);
-                    RC663_OpenAntenna();
-                    Reader_Delayms(5);
-                    if(ISO15693_Inventory(g_sDeviceParamenter.controlLow.afiControl, g_sDeviceParamenter.afiValue, g_sReaderImParams.uid))
-                    {
-                        u8 i = 0;
-
-                        for(i = 0; i < g_sReaderImParams.blockNum; i++)
-                        {
-                        #if SYS_ENABLE_WDT
-                            WDG_FeedIWDog();
-                        #endif
-                            state = ISO15693_ReadBlock(g_sReaderImParams.uid, 1, g_sReaderImParams.blockAddr[i], g_sReaderImParams.block[i], ISO15693_SIZE_BLOCK);
-                            if(state != RC663_STAT_OK)
-                            {
-                                break;
-                            }
-                        }
-                        if(i == g_sReaderImParams.blockNum)
-                        {
-                            g_sReaderImParams.uidNum = 1;
-                        }
-                    }
-                    g_sReaderRspFrame.len = RISO15693_DirOpRspFrame(&g_sReaderImParams, &g_sReaderRspFrame);
-                }
-                RC663_CloseAntenna();
-                g_sDeviceParamenter.rfCtrl = READER_RF_CLOSE;
-            }
-            break;
-        case RISO15693_CMD_DIRWB:  //ISO15693写数据块
-            if(paramsLen > 1)
-            {
-                BOOL bOkParams = FALSE;
-                u8 paramsPos = 0;
-
-                g_sReaderImParams.uidNum = 0;
-                memset(g_sReaderImParams.blockAddr, 0, READER_IM_BLOCK_NUM);
-
-                paramsPos = UART_FRAME_POS_PAR + 2;
-                paramsPos += 4;     //跳过写的时间参数
-                g_sReaderImParams.uidNum = pFrame[paramsPos++];    //1-num
-                g_sReaderImParams.blockNum = pFrame[paramsPos++];
-                if(g_sReaderImParams.uidNum == READER_OP_UID_NUM && g_sReaderImParams.blockNum <= READER_IM_BLOCK_NUM)
-                {
-                    bOkParams = TRUE;
-                    if(g_sReaderImParams.blockNum < READER_IM_BLOCK_OLD_NUM)
-                    {
-                        memcpy(g_sReaderImParams.blockAddr, pFrame + paramsPos, READER_IM_BLOCK_OLD_NUM);
-                        paramsPos += READER_IM_BLOCK_OLD_NUM;
-                    }
-                    else
-                    {
-                        memcpy(g_sReaderImParams.blockAddr, pFrame + paramsPos, g_sReaderImParams.blockNum);
-                        paramsPos += g_sReaderImParams.blockNum;
-                    }
-                    memcpy(g_sReaderImParams.uid, pFrame + paramsPos, ISO15693_SIZE_UID);
-                    paramsPos += ISO15693_SIZE_UID;
-                    memcpy(g_sReaderImParams.block, pFrame + paramsPos, g_sReaderImParams.blockNum * ISO15693_SIZE_BLOCK);
-                    paramsPos += g_sReaderImParams.blockNum * ISO15693_SIZE_BLOCK;
-                    if(paramsPos + 2 > len)
-                    {
-                        bOkParams = FALSE;
-                    }
-                }
-
-                if(bOkParams)
-                {
-                    u8 i = 0;
-
-                    RC663_CloseAntenna();
-                    Reader_Delayms(1);
-                    RC663_OpenAntenna();
-                    Reader_Delayms(5);
-
-                    memset(g_sReaderImParams.result, 0, READER_IM_BLOCK_NUM);
-                    for(i = 0; i < g_sReaderImParams.blockNum; i++)
-                    {
-                    #if SYS_ENABLE_WDT
-                        WDG_FeedIWDog();
-                    #endif
-                        state = ISO15693_WriteBlock(g_sReaderImParams.uid, 1, g_sReaderImParams.blockAddr[i], g_sReaderImParams.block[i], ISO15693_SIZE_BLOCK);
-                        if(state != RC663_STAT_OK)
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            g_sReaderImParams.result[i] = 1;
-                        }
-                    }
-
-                    g_sReaderRspFrame.len = RISO15693_DirWriteTagRspFrame(&g_sReaderImParams, &g_sReaderRspFrame);
-                }
-                RC663_CloseAntenna();
-                g_sDeviceParamenter.rfCtrl = READER_RF_CLOSE;
-            }
-            break;
-        case RISO15693_CMD_READ_UID:  //ISO15693读取标签UID
-            if(paramsLen == 1 && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 num = 0;
-                num = ISO15693_Inventory(g_sDeviceParamenter.controlLow.afiControl, g_sDeviceParamenter.afiValue, g_aReaderISO15693Uid);
-                if(num > 0)                                                     //静默命令，如果参数中包含静默，就全部静默
-                {
-                    if(g_sDeviceParamenter.controlLow.tagQuiet == READER_TAG_QUIET)
-                    {
-                        ISO15693_StayQuiet(g_aReaderISO15693Uid);
-                    }
-                    g_sReaderRspFrame.len = RISO15693_GetUidRspFrame(g_aReaderISO15693Uid, num, &g_sReaderRspFrame);  //响应帧打包
-                }
-                else
-                {
-                    g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-                }
-            }
-            break;
-        case RISO15693_CMD_READ_MBLOCK:  //ISO15693读多块数据块
-            if(paramsLen == (ISO15693_SIZE_UID + 1 + 1) && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 uid[ISO15693_SIZE_UID] = {0};
-                u8 num = 0;
-                u8 addr = 0;
-
-                memcpy(uid, pFrame + UART_FRAME_POS_PAR, ISO15693_SIZE_UID);
-                addr = pFrame[UART_FRAME_POS_PAR + ISO15693_SIZE_UID + 0];
-                num = pFrame[UART_FRAME_POS_PAR + ISO15693_SIZE_UID + 1];
-
-                state = ISO15693_ReadBlock(uid, num, addr, g_aTempBuffer, ISO15693_SIZE_BLOCK);
-                if(state == RC663_STAT_OK)
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                }
-                else
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_FAIL;
-                    g_sReaderRspFrame.err = Reader_GetErrorType(state);
-                }
-                g_sReaderRspFrame.len = Reader_ResponseFrame(g_aTempBuffer, num * ISO15693_SIZE_BLOCK, &g_sReaderRspFrame);
-            }
-            break;
-        case RISO15693_CMD_WRITE_MBLOCK:  //ISO15693写多块数据块
-            if(paramsLen > (ISO15693_SIZE_UID + 1 + 1) && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 uid[ISO15693_SIZE_UID] = {0};
-                u8 num = 0;
-                u8 addr = 0;
-
-                memcpy(uid, pFrame + UART_FRAME_POS_PAR, ISO15693_SIZE_UID);
-                addr = pFrame[UART_FRAME_POS_PAR + ISO15693_SIZE_UID];
-                num = pFrame[UART_FRAME_POS_PAR + ISO15693_SIZE_UID + 1];
-                memcpy(g_aTempBuffer, pFrame + UART_FRAME_POS_PAR + ISO15693_SIZE_UID + 1 + 1, num * ISO15693_SIZE_BLOCK);
-
-                state = ISO15693_WriteBlock(uid, num, addr, g_aTempBuffer, ISO15693_SIZE_BLOCK);         //WriteBlock
-                if(state == RC663_STAT_OK)
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                }
-                else
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_FAIL;
-                    g_sReaderRspFrame.err = Reader_GetErrorType(state);
-                }
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case RISO15693_CMD_LOCK_BLOCK:  //ISO15693锁数据块
-            if(paramsLen == (ISO15693_SIZE_UID + 1) && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 uid[ISO15693_SIZE_UID] = {0};
-                u8 addr = 0;
-
-                memcpy(uid, pFrame + UART_FRAME_POS_PAR, ISO15693_SIZE_UID);
-                addr = pFrame[UART_FRAME_POS_PAR + ISO15693_SIZE_UID];
-
-                state = ISO15693_LockBlock(uid, addr);          //LOCKBLOCK
-                if(state == RC663_STAT_OK)
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                }
-                else
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_FAIL;
-                    g_sReaderRspFrame.err = Reader_GetErrorType(state);
-                }
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case RISO15693_CMD_WRITE_AFI:  //ISO15693写AFI
-            if(paramsLen == (ISO15693_SIZE_UID + 1) && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 uid[ISO15693_SIZE_UID] = {0};
-                u8 afi = 0;
-
-                memcpy(uid, pFrame + UART_FRAME_POS_PAR, ISO15693_SIZE_UID);
-                afi = pFrame[UART_FRAME_POS_PAR + ISO15693_SIZE_UID];
-
-                state = ISO15693_WriteAFI(uid, afi);       //
-                if(state == RC663_STAT_OK)
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                }
-                else
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_FAIL;
-                    g_sReaderRspFrame.err = Reader_GetErrorType(state);
-                }
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case RISO15693_CMD_LOCK_AFI:  //ISO15693锁AFI
-            if(paramsLen == (ISO15693_SIZE_UID) && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 uid[ISO15693_SIZE_UID] = {0};
-                memcpy(uid, pFrame + UART_FRAME_POS_PAR, ISO15693_SIZE_UID);
-
-                state = ISO15693_LockAFI(uid);             //LOCKAFI
-                if(state == RC663_STAT_OK)
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                }
-                else
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_FAIL;
-                    g_sReaderRspFrame.err = Reader_GetErrorType(state);
-                }
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case RISO15693_CMD_WRITE_DSFID:  //ISO15693写DSFID
-            if(paramsLen == (ISO15693_SIZE_UID + 1) && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 uid[ISO15693_SIZE_UID] = {0};
-                u8 dsfid = 0;
-
-                memcpy(uid, pFrame + UART_FRAME_POS_PAR, ISO15693_SIZE_UID);
-                dsfid = pFrame[UART_FRAME_POS_PAR + ISO15693_SIZE_UID];
-
-                state = ISO15693_WriteDSFID(uid, dsfid);
-                if(state == RC663_STAT_OK)
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                }
-                else
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_FAIL;
-                    g_sReaderRspFrame.err = Reader_GetErrorType(state);
-                }
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case RISO15693_CMD_LOCK_DSFID:  //ISO15693锁DSFID
-            if(paramsLen == (ISO15693_SIZE_UID) && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 uid[ISO15693_SIZE_UID] = {0};
-
-                memcpy(uid, pFrame + UART_FRAME_POS_PAR, ISO15693_SIZE_UID);
-
-                state = ISO15693_LockDSFID(uid);         //LOCKDSFID
-                if(state == RC663_STAT_OK)
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                }
-                else
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_FAIL;
-                    g_sReaderRspFrame.err = Reader_GetErrorType(state);
-                }
-                g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-            }
-            break;
-        case RISO15693_CMD_GETINFO:  //读便签信息
-            if(paramsLen == (ISO15693_SIZE_UID) && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 uid[ISO15693_SIZE_UID] = {0};
-                ISO15693_TAGINF tagInfo = {0};
-                memcpy(uid, pFrame + UART_FRAME_POS_PAR, ISO15693_SIZE_UID);
-
-                state = ISO15693_GetTagInf(uid, &tagInfo);
-                if(state == RC663_STAT_OK)
-                {
-                    u8 frame[10] = {0};
-                    u8 pos = 0;
-
-                    frame[pos++] = tagInfo.infFlag;// Info flag
-                    frame[pos++] = tagInfo.dsfid;// Info flag
-                    frame[pos++] = tagInfo.afi;// Info flag
-                    frame[pos++] = ((tagInfo.vicc >> 0) & 0xFF) + 1;// Info flag
-                    frame[pos++] = ((tagInfo.vicc >> 8) & 0xFF) + 1;// Info flag
-                    frame[pos++] = tagInfo.icRef;
-
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                    g_sReaderRspFrame.len = RISO15693_GetTagInfoRspFrame(frame, pos, &g_sReaderRspFrame);
-                }
-                else
-                {
-                    g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-                }
-            }
-            break;
-        case RISO15693_CMD_DTU:  //ISO15693透传
-            //TxLen frame timeout rxLen
-            if(paramsLen >= 4 && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN)
-            {
-                u8 *pTxFrame = NULL;
-                u8 txLen = 0;
-                u32 timeout = 0;
-                u8 pos = 0;
-
-                pos = UART_FRAME_POS_PAR;
-
-                txLen = pFrame[pos++];
-                if(txLen)
-                {
-                    pTxFrame = pFrame + pos;
-                }
-                pos += txLen;
-                timeout = pFrame[pos++];
-                timeout += (pFrame[pos++] << 8);
-
-                state = ISO15693_Dtu(pTxFrame, txLen, timeout);
-
-                if(state == RC663_STAT_OK)
-                {
-                    u16 crc = 0;
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_OK;
-                    g_sReaderRspFrame.err = READER_OPTAG_RESPONSE_NOERR;
-                    //注意，这里为了配合ST95的透传要求，增加一个CRC，还有一个00
-                    crc = a_GetCrc(g_sRc663Frame.frame, g_sRc663Frame.rxLen);
-                    g_sRc663Frame.frame[g_sRc663Frame.rxLen++] = (crc >> 0) & 0xFF;
-                    g_sRc663Frame.frame[g_sRc663Frame.rxLen++] = (crc >> 8) & 0xFF;
-                    g_sRc663Frame.frame[g_sRc663Frame.rxLen++] = 0x00;
-                    g_sReaderRspFrame.len = Reader_ResponseFrame(g_sRc663Frame.frame, g_sRc663Frame.rxLen, &g_sReaderRspFrame);
-                }
-                else
-                {
-                    g_sReaderRspFrame.flag = READER_RSPFRAME_FLAG_FAIL;
-                    g_sReaderRspFrame.err = Reader_GetErrorType(state);
-                    g_sReaderRspFrame.len = Reader_ResponseFrame(NULL, 0, &g_sReaderRspFrame);
-                }
-
-            }
-            break;
         case RISO14443A_CMD_GET_UID:
             a_memset(&g_sReaderISO14443AUid, 0, sizeof(g_sReaderISO14443AUid));
             if(paramsLen == 1 && g_sDeviceParamenter.rfCtrl == READER_RF_OPEN && (g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO14443A)
@@ -1643,10 +846,15 @@ u8 Reader_ProcessFrame(u8 *pFrame, u8 len)
 }*/
 
 //-------------------------------------
+
+const u8 DEVICE_VERSION[DEVICE_VERSION_SIZE]@0x08005000 = "R0001 25011800 R001-SCH-MB-250100";
+const u8 DEVICE_HARD_TYPE[DEVICE_VERSION_SIZE]@0x08005080 = "R001-SCH-MB-250100";
+
 DEVICE_BOOTPARAMS g_sDeviceBootParamenter = {0};
 DEVICE_PARAMS g_sDeviceParams = {0};
 DEVICE_OP g_sDeviceOp = {0};
 DEVICE_OPTAGINFO g_sDeviceOpTagInfo = {0};
+DEVICE_RSPFRAME g_sDevicerRspFrame = {0};
 
 void Device_Delayms(u32 n)
 {
@@ -1655,6 +863,47 @@ void Device_Delayms(u32 n)
     while(n--);
 }
 
+const PORT_INF EXPORT_CH1_PORT = {GPIOB, GPIO_Pin_13};
+const PORT_INF EXPORT_CH2_PORT = {GPIOB, GPIO_Pin_14};
+
+void Device_ExportInit()
+{
+    GPIO_InitTypeDef GPIO_InitStructure = {0};
+
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+
+    GPIO_InitStructure.GPIO_Pin = EXPORT_CH1_PORT.Pin | EXPORT_CH2_PORT.Pin;
+    GPIO_Init(EXPORT_CH1_PORT.Port, &GPIO_InitStructure);
+    
+    Device_ExportCh1Low();
+    Device_ExportCh2Low();
+}
+
+
+void Device_Init(void)
+{
+    Device_ExportInit();
+    FM17xx_Reset();
+    ISO14443A_Init();
+    //FM17xx_OpenAntenna() ;
+    if(Device_ReadParamenters(DEVICE_PAR_START) == FALSE || Device_ReadParamenters(DEVICE_PAR_BACK_START) == FALSE)
+    {
+        Device_WriteParamenters(DEVICE_PAR_START);
+        Device_WriteParamenters(DEVICE_PAR_BACK_START);
+    }
+    
+    if(Device_ReadBootParamenter(DEVICE_APP_PAR_START) == FALSE || (g_sDeviceBootParamenter.appState != DEVICE_BOOT_APP_OK) || 
+       Device_ReadBootParamenter(DEVICE_APPPAR_BACK_START) == FALSE || g_sDeviceBootParamenter.addr ^ g_sDeviceParams.addr)
+    {
+        g_sDeviceBootParamenter.addr = g_sDeviceParams.addr;
+        g_sDeviceBootParamenter.appState = DEVICE_BOOT_APP_OK;
+        Device_WriteBootParamenter(DEVICE_APP_PAR_START);
+        Device_WriteBootParamenter(DEVICE_APPPAR_BACK_START);
+    }
+    
+    a_SetState(g_sDeviceOp.state, DEVICE_STAT_IDLE);
+}
 
 BOOL Device_ReadBootParamenter(u32 addr)                                         //OK
 {
@@ -1679,7 +928,7 @@ BOOL Device_ReadBootParamenter(u32 addr)                                        
     if((crc1 != crc2))
     {
         memset(&g_sDeviceBootParamenter, 0, sizeof(DEVICE_BOOTPARAMS));
-        g_sDeviceBootParamenter.addr = 1;
+        g_sDeviceBootParamenter.addr = g_sDeviceParams.addr;
         g_sDeviceBootParamenter.appState = DEVICE_BOOT_APP_OK;
     }
     else
@@ -1747,10 +996,22 @@ BOOL Device_ReadParamenters(u32 addr)                                         //
     crc1 = a_GetCrc((u8 *)pDevicePar, (sizeof(DEVICE_PARAMS)) - 2);
     crc2 = g_sDeviceParams.crc;
 
-    //重新写入默认值
+    
     if((crc1 != crc2))
     {
         memset(&g_sDeviceParams, 0, sizeof(DEVICE_PARAMS));
+        
+        g_sDeviceParams.addr = 0x01;
+        g_sDeviceParams.blockAddr = 0x08;                   //扇区二块一                         ，校验前八字节
+        
+        g_sDeviceParams.blockDate[0][0] = 0x21; g_sDeviceParams.blockDate[0][1] = 0x21; g_sDeviceParams.blockDate[0][2] = 0x21; g_sDeviceParams.blockDate[0][3] = 0x21;
+        g_sDeviceParams.blockDate[0][4] = 0x21; g_sDeviceParams.blockDate[0][5] = 0x21; g_sDeviceParams.blockDate[0][6] = 0x21; g_sDeviceParams.blockDate[0][7] = 0x21;
+        
+        g_sDeviceParams.blockDate[1][0] = 0x52; g_sDeviceParams.blockDate[1][1] = 0x52; g_sDeviceParams.blockDate[1][2] = 0x52; g_sDeviceParams.blockDate[1][3] = 0x52;
+        g_sDeviceParams.blockDate[1][4] = 0x52; g_sDeviceParams.blockDate[1][5] = 0x52; g_sDeviceParams.blockDate[1][6] = 0x52; g_sDeviceParams.blockDate[1][7] = 0x52;
+        
+        g_sDeviceParams.key[0] = 0x13; g_sDeviceParams.key[1] = 0x14; g_sDeviceParams.key[2] = 0x13; 
+        g_sDeviceParams.key[3] = 0x14; g_sDeviceParams.key[4] = 0x13; g_sDeviceParams.key[5] = 0x14; 
     }
     else
     {
@@ -1809,11 +1070,18 @@ void Device_AutoTask()
 	pOpInfo->op[num++] = DEVICE_OP_INVENTORY;
 
     pOpInfo->op[num++] = DEVICE_OP_ANTISHAKE;
-
-    pOpInfo->op[num++] = DEVICE_OP_CHKDATE;
+    
+    pOpInfo->op[num++] = DEVICE_OP_AUTH;
+    
+    pOpInfo->op[num++] = DEVICE_OP_READ;
+    
+    pOpInfo->op[num++] = DEVICE_OP_PROOF;
 
     pOpInfo->antiShakeTick = 400;
     pOpInfo->num = num;
+    memcpy(pOpInfo->imParams.key, g_sDeviceParams.key, ISO14443A_M1_KEY_LEN);
+    memcpy(pOpInfo->imParams.blockDate, g_sDeviceParams.blockDate, DEVICE_PAR_AUTH_BLOCK_DATE_LEN * DEVICE_PAR_AUTH_BLOCK_NUM);
+    pOpInfo->imParams.blockAddr[0] = g_sDeviceParams.blockAddr;
     a_SetState(pOpInfo->state, DEVICE_STAT_TX);
 }
 
@@ -1832,6 +1100,7 @@ BOOL Device_Transm(DEVICE_OP *pOpInfo)
             {
                 pOpInfo->tagNum = 1;
                 memcpy(&pOpTagInfo->tag, &pOpInfo->tag, sizeof(ISO14443A_UID));
+                //ISO14443A_Halt();
                 pOpInfo->rlt = DEVICE_RESULT_OK;
             }
             else
@@ -1840,10 +1109,16 @@ BOOL Device_Transm(DEVICE_OP *pOpInfo)
                 pOpInfo->tagNum = 0;
             }
             break;
-            case DEVICE_OP_ANTISHAKE:
+        case DEVICE_OP_ANTISHAKE:
             pOpInfo->rlt = DEVICE_RESULT_OK;
             break;
-            case DEVICE_OP_CHKDATE:
+        case DEVICE_OP_AUTH:
+            pOpInfo->rlt = ISO14443A_AuthM1(pOpInfo->tag.uid, ISO14443A_CMD_AUTHENT_A, pOpInfo->imParams.key, pOpInfo->imParams.blockAddr[pOpTagInfo->rbIndex]);
+            break;
+        case DEVICE_OP_READ:
+            pOpInfo->rlt = ISO14443A_ReadMifareBlock(pOpInfo->imParams.blockAddr[pOpTagInfo->rbIndex], pOpInfo->block);
+            break;
+        case DEVICE_OP_PROOF:
             pOpInfo->rlt = DEVICE_RESULT_OK;
             break;
         /*case READER_OP_READSINGLEBLOCK:
@@ -1876,7 +1151,9 @@ u8 Device_Receive(DEVICE_OP *pOpInfo)
     {
         case DEVICE_OP_INVENTORY:
         case DEVICE_OP_ANTISHAKE:
-        case DEVICE_OP_CHKDATE:
+        case DEVICE_OP_PROOF:
+        case DEVICE_OP_READ:
+        case DEVICE_OP_AUTH:
         default:
             break;
     }
@@ -1918,7 +1195,7 @@ BOOL Device_Step(DEVICE_OP *pOpInfo)
                 pOpInfo->index++;
                 if(memcmp(&pOpInfo->tag, &pOpTagInfo->okTag, sizeof(ISO14443A_UID)) == 0)
                 {
-                    pOpTagInfo->writeDishOkTick = g_nSysTick;
+                    pOpTagInfo->opOkTick = g_nSysTick;
                     pOpInfo->bRepeatTag = TRUE;
                     pOpInfo->index = pOpInfo->num;
                     b = TRUE;
@@ -1944,9 +1221,9 @@ BOOL Device_Step(DEVICE_OP *pOpInfo)
 				{
 					pOpTagInfo->repeat = 0;
 					b = FALSE;
-					if(pOpTagInfo->bWriteDishOk)
+					if(pOpTagInfo->bTagOk)
 					{
-						//Reader_CheckRemoveDishTag(pReaderOp, pOpTagInfo);
+						Device_CheckRemoveokTag(pOpInfo, pOpTagInfo);
 					}
 					if(pOpTagInfo->bAntiShake)                                  //多次不能读取shakeUID，清空shakeUidBuffer
 					{
@@ -1986,14 +1263,59 @@ BOOL Device_Step(DEVICE_OP *pOpInfo)
             	}
             }
         break;
-        case DEVICE_OP_CHKDATE:
+        case DEVICE_OP_AUTH:
             if(rlt == DEVICE_RESULT_OK)
             {
                 pOpTagInfo->repeat = 0;
-                if(TRUE)
+                pOpInfo->index++;
+                b = TRUE;  
+            }
+            else
+            {
+            	pOpTagInfo->repeat += DEVICE_OP_TAG_REPEAT;                 //关闭
+            	if(pOpTagInfo->repeat >= DEVICE_OP_TAG_REPEAT)
+            	{
+                    pOpTagInfo->repeat = 0;
+                    b = FALSE;
+            	}
+            }
+        break;
+        case DEVICE_OP_READ: 
+            if(rlt == DEVICE_RESULT_OK)
+            {
+                pOpTagInfo->repeat = 0;
+                pOpInfo->index++;
+                b = TRUE;  
+            }
+            else
+            {
+            	pOpTagInfo->repeat++;
+            	if(pOpTagInfo->repeat >= DEVICE_OP_TAG_REPEAT)
+            	{
+                    pOpTagInfo->repeat = 0;
+                    b = FALSE;
+            	}
+            }
+        case DEVICE_OP_PROOF:
+            if(rlt == DEVICE_RESULT_OK)
+            {
+                pOpTagInfo->repeat = 0;
+                pOpInfo->index++;
+                if(memcmp(pOpInfo->block, pOpInfo->imParams.blockDate[0], DEVICE_PAR_AUTH_BLOCK_DATE_LEN) == 0)
                 {
-                    pOpInfo->index++;
+                    pOpInfo->bProof = TRUE;
+                    pOpInfo->proofFlag = 0x01;
                     b = TRUE;
+                }
+                else if(memcmp(pOpInfo->block, pOpInfo->imParams.blockDate[1], DEVICE_PAR_AUTH_BLOCK_DATE_LEN) == 0)
+                {
+                    pOpInfo->bProof = TRUE;
+                    pOpInfo->proofFlag = 0x02;
+                    b = TRUE;
+                }
+                else
+                {
+                    pOpInfo->bProof = FALSE;
                 }
             }
             else
@@ -2011,4 +1333,124 @@ BOOL Device_Step(DEVICE_OP *pOpInfo)
             break;
     }
     return b;
+}
+
+
+u16 Device_ProcessUartFrame(u8 *pFrame, u16 len)
+{
+    u8 cmd = 0;
+
+    u16 destAddr = 0;
+    u16 paramsLen = 0;
+    u8 *pParams = NULL;
+    BOOL bOpLcm = FALSE;
+    BOOL bRfOperation = FALSE;
+
+    destAddr = *((u16 *)(pFrame + UART_FRAME_POS_DESTADDR));
+    if((destAddr != 0xFFFF) && (destAddr != g_sDeviceParams.addr))
+    {
+        return 0;
+    }
+
+    g_sDevicerRspFrame.destAddr = *((u16 *)(pFrame + UART_FRAME_POS_SRCADDR));
+    g_sDevicerRspFrame.len = 0;
+    cmd = *(pFrame + UART_FRAME_POS_CMD);
+
+    g_sDevicerRspFrame.cmd = cmd;
+    g_sDevicerRspFrame.flag = UART_FRAME_FLAG_OK;
+    g_sDevicerRspFrame.err = UART_FRAME_RSP_NOERR;
+
+    if(pFrame[UART_FRAME_POS_LEN] == 0)
+    {
+        paramsLen = *((u16 *)(pFrame + UART_FRAME_POS_PAR));
+        pParams = pFrame + UART_FRAME_POS_PAR + 2;
+    }
+    else
+    {
+        paramsLen = len - UART_FRAME_MIN_LEN;
+        pParams = pFrame + UART_FRAME_POS_PAR;
+    }
+    
+    switch(cmd)
+    {
+        case UART_CMD_RESET:
+            if(paramsLen == 0)
+            {
+                g_sDevicerRspFrame.len = Device_ResponseFrame(NULL, 0, &g_sDevicerRspFrame);
+            }
+            break;
+        case UART_CMD_GET_VERSION:
+            if(paramsLen == 0)
+            {
+                g_sDevicerRspFrame.len = Device_ResponseFrame((u8 *)DEVICE_VERSION, DEVICE_VERSION_SIZE, &g_sDevicerRspFrame);
+            }
+            break;
+		case UART_CMD_GET_CPUID:
+            if(paramsLen == 0)
+            {
+                g_sDevicerRspFrame.len = Device_ResponseFrame((u8 *)STM32_CPUID_ADDR, STM32_CPUID_LEN, &g_sDevicerRspFrame);
+            }
+            break;
+        default:
+            break;
+    }
+    
+    if(g_sDevicerRspFrame.len == 0 && bOpLcm == FALSE && bRfOperation == FALSE)
+    {
+        g_sDevicerRspFrame.flag = UART_FRAME_FLAG_FAIL;
+        g_sDevicerRspFrame.err = UART_FRAME_RSP_PARAMSERR;
+        g_sDevicerRspFrame.len = Device_ResponseFrame(NULL, 0, &g_sDevicerRspFrame);
+    }
+    
+    return g_sDevicerRspFrame.len;
+}
+
+u16 Device_ResponseFrame(u8 *pParam, u16 len, DEVICE_RSPFRAME *pRspFrame)
+{
+    u16 pos = 0;
+    u16 crc = 0;
+
+    pRspFrame->buffer[pos++] = UART_FRAME_FLAG_HEAD1; // frame head first byte
+    pRspFrame->buffer[pos++] = UART_FRAME_FLAG_HEAD2; // frame haed second byte
+    pRspFrame->buffer[pos++] = 0x00;   // length
+    pRspFrame->buffer[pos++] = (g_sDeviceParams.addr >> 0) & 0xFF;
+    pRspFrame->buffer[pos++] = (g_sDeviceParams.addr >> 8) & 0xFF;
+    pRspFrame->buffer[pos++] = (pRspFrame->destAddr >> 0) & 0xFF;
+    pRspFrame->buffer[pos++] = (pRspFrame->destAddr >> 8) & 0xFF;
+    pRspFrame->buffer[pos++] = UART_FRAME_RESPONSE_FLAG;
+    pRspFrame->buffer[pos++] = pRspFrame->cmd;               // cmd
+    pRspFrame->buffer[pos++] = UART_FRAME_PARAM_RFU;     // RFU
+
+    if(len > UART_FRAME_DATA_MAX_LEN)
+    {
+        pRspFrame->buffer[pos++] = (len >> 0) & 0xFF;
+        pRspFrame->buffer[pos++] = (len >> 8) & 0xFF;
+
+        memcpy(pRspFrame->buffer + pos, pParam, len);
+        pos += len;
+    }
+    else
+    {
+        memcpy(pRspFrame->buffer + pos, pParam, len);
+        pos += len;
+        pRspFrame->buffer[pos++] = pRspFrame->flag;
+        pRspFrame->buffer[pos++] = pRspFrame->err;
+        pRspFrame->buffer[UART_FRAME_POS_LEN] = pos - 3 + 2; //减去帧头7E 55 LEN 的三个字节，加上CRC的两个字节
+    }
+
+    crc = a_GetCrc(pRspFrame->buffer + UART_FRAME_POS_LEN, pos - UART_FRAME_POS_LEN); //从LEN开始计算crc
+    pRspFrame->buffer[pos++] = crc & 0xFF;
+    pRspFrame->buffer[pos++] = (crc >> 8) & 0xFF;
+
+    pRspFrame->len = pos;
+
+    return pos;
+}
+
+void Device_CheckRemoveokTag(DEVICE_OP *pOpInfo, DEVICE_OPTAGINFO *pOpTagInfo)
+{
+    if(pOpTagInfo->opOkTick + 100 < g_nSysTick)
+    {
+        Device_ClearOkTag();
+    }
 }

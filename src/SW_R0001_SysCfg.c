@@ -144,11 +144,9 @@ void Sys_Init(void)
     Sys_AlarmLedOn();
     Sys_AlarmBuzOn();
     
-    Reader_ReadDeviceConfig();
-
     FM17xx_InitInterface();
     
-    Reader_Init();
+    Device_Init();
        
     Uart_Init(UART_BAUDRARE);
 
@@ -191,14 +189,15 @@ void Sys_LedTask(void)
 
     if(a_CheckStateBit(g_nSysState, SYS_STAT_ALARMLED))
     {
-        a_ClearStateBit(g_nSysState, SYS_STAT_ALARMLED);
-        a_SetStateBit(g_nSysState, SYS_STAT_ALARMDLY);
         g_nAlarmDelayTime = g_nSysTick;
         Sys_AlarmLedOn();
-        if(g_sDeviceParamenter.controlHigh.buzzer)
+        if(a_CheckStateBit(g_nSysState, SYS_STAT_ALARMBUZZER))
         {
             Sys_AlarmBuzOn();
-        }
+            a_ClearStateBit(g_nSysState, SYS_STAT_ALARMBUZZER);
+        } 
+        a_ClearStateBit(g_nSysState, SYS_STAT_ALARMLED);
+        a_SetStateBit(g_nSysState, SYS_STAT_ALARMDLY);
     }
 
     if(a_CheckStateBit(g_nSysState, SYS_STAT_ALARMDLY))
@@ -211,6 +210,7 @@ void Sys_LedTask(void)
             Sys_AlarmBuzOff();
         }
     }
+    
 }
 
 void Sys_UartTask(void)
@@ -219,9 +219,7 @@ void Sys_UartTask(void)
     {
         USART_ClearFlag(UART_PORT, USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE);
         Uart_EnableInt(DISABLE, DISABLE);
-        Uart_InitInterface(Reader_GetUartBaudrate());
-        Uart_ConfigInt();
-        Uart_EnableInt(ENABLE, DISABLE);
+        Uart_Init(UART_BAUDRARE);
     }
 
     //串口数据帧解析
@@ -239,10 +237,9 @@ void Sys_UartTask(void)
             if(crc1 == crc2)
             {
                 u8 txLen = 0;
-                u8 cmd = 0;
-                cmd = g_sUartRcvTempFrame.buffer[UART_FRAME_POS_CMD];
+
                 g_sReaderRspFrame.com = READER_COM_UART;
-                //txLen = Reader_ProcessFrame(g_sUartRcvTempFrame.buffer, g_sUartRcvTempFrame.index);
+                txLen = Device_ProcessUartFrame(g_sUartRcvTempFrame.buffer, g_sUartRcvTempFrame.index);
                 if(txLen > 0)
                 {
                     a_SetStateBit(g_nSysState, SYS_STAT_UARTTX);
@@ -250,8 +247,18 @@ void Sys_UartTask(void)
             }
         }
     }
-
-
+    
+    if(a_CheckStateBit(g_nSysState, SYS_STAT_UARTTX))
+    {
+        Uart_WriteBuffer(g_sDevicerRspFrame.buffer, g_sDevicerRspFrame.len);
+        a_ClearStateBit(g_nSysState, SYS_STAT_ALARMLED);
+        
+        if(g_sDevicerRspFrame.cmd == UART_CMD_RESET)
+        {
+            Device_Delayms(20);
+            Sys_SoftReset();
+        }
+    }
 }
 
 void Sys_DeviceTask()
@@ -289,15 +296,19 @@ void Sys_DeviceTask()
             a_SetState(g_sDeviceOp.state, DEVICE_STAT_DELAY);
             g_sDeviceOp.delay = g_nSysTick;
             FM17xx_CloseAntenna();
-
+            Sys_Delayms(1);
             if(g_sDeviceOp.index >= g_sDeviceOp.num && b == TRUE)       //操作成功
             {
-                if(g_sDeviceOp.bRepeatTag == FALSE && g_sDeviceOpTagInfo.bSwitchDishTag == FALSE)
+                if(g_sDeviceOp.bProof == TRUE || g_sDeviceOp.bRepeatTag == TRUE)
                 {
-                    g_sDeviceOpTagInfo.writeDishOkTick = g_nSysTick;
-                    g_sDeviceOpTagInfo.bWriteDishOk = TRUE;
+                    g_sDeviceOpTagInfo.bTagOk = TRUE;
                     memcpy(&g_sDeviceOpTagInfo.okTag, &g_sDeviceOp.tag, sizeof(ISO14443A_UID));   //操作成功标签
+                    a_SetStateBit(g_nSysState, SYS_STAT_ALARMBUZZER);
                 }
+            }
+            
+            if(g_sDeviceOp.tagNum)
+            {
                 a_SetStateBit(g_nSysState, SYS_STAT_ALARMLED);
             }
         }

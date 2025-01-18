@@ -4,7 +4,7 @@
 #include "SW_Boot_Config.h"
 
 #define UART_PORT               USART1
-#define UART_BAUDRARE           38400
+#define UART_BAUDRARE           115200
 
 #define Uart_ReadByte()         ((u16)(UART_PORT->DR & (u16)0x01FF))
 

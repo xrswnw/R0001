@@ -164,7 +164,7 @@ void Sys_Init(void)
         }
     }
     
-    Uart_InitInterface(Fram_GetUartBaudrate());
+    Uart_InitInterface(UART_BAUDRARE);
     Uart_ConfigInt();
     Uart_EnableInt(ENABLE, DISABLE);
 
@@ -266,7 +266,7 @@ void Sys_UartTask(void)
     if(USART_GetFlagStatus(UART_PORT, USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE))
     {
         USART_ClearFlag(UART_PORT, USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE);
-        Uart_InitInterface(Fram_GetUartBaudrate());
+        Uart_InitInterface(UART_BAUDRARE);
         Uart_ConfigInt();
         Uart_EnableInt(ENABLE, DISABLE);
     }
