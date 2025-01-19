@@ -16,6 +16,8 @@ extern u32 g_nSysState;
 
 #define SYS_STAT_ALARMKEY       0x00000008
 #define SYS_STAT_ALARMKDLY      0x00000400
+
+#define SYS_STAT_MONITOR_EXPORT 0x80000000
 //µÆ
 extern const PORT_INF SYS_RUNLED_COM;
 #define Sys_RunLedOff()         SYS_RUNLED_COM.Port->BSRR = SYS_RUNLED_COM.Pin

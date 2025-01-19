@@ -11,4 +11,5 @@ void Uart_Init(u32 bud)
     Uart_EnableInt(ENABLE, DISABLE);
     Uart_InitTimer(bud);
     Uart_StopRcvTim();
+    g_sUartRcvFrame.state = UART_STAT_IDLE;
 }

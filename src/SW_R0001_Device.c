@@ -82,44 +82,6 @@ u8 RISO14443A_GetUidRspFrame(ISO14443A_UID *pISO14443AUid, READER_RSPFRAME *pOpR
     return pos;
 }
 
-u8 Reader_AutoUid(void)
-{
-    u8 num = 0;
-    FM17xx_OpenAntenna();
-    /*if((g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO15693)
-    {
-        //num = ISO15693_Inventory(g_sDeviceParamenter.controlLow.afiControl, g_sDeviceParamenter.afiValue, g_aReaderISO15693Uid);
-        if(num > 0)                                                     //静默命令，如果参数中包含静默，就全部静默
-        {
-            if(g_sDeviceParamenter.controlLow.tagQuiet == READER_TAG_QUIET)
-            {
-                //ISO15693_StayQuiet(g_aReaderISO15693Uid);
-            }
-        }
-    }
-    else if((g_sDeviceParamenter.workMode & READER_TYPE_MASK) == READER_TYPE_ISO14443A)
-    {
-        if(ISO14443A_GetUid(&g_sReaderISO14443AUid, ISO14443A_CMD_REQALL) == FM17XX_STAT_OK)
-        {
-            if(g_sDeviceParamenter.controlLow.tagQuiet == READER_TAG_QUIET)
-            {
-                ISO14443A_Halt();
-            }
-            num = 1;
-        }
-    }*/
-    if(ISO14443A_GetUid(&g_sReaderISO14443AUid, ISO14443A_CMD_REQALL) == FM17XX_STAT_OK)
-    {
-        if(g_sDeviceParamenter.controlLow.tagQuiet == READER_TAG_QUIET)
-        {
-            ISO14443A_Halt();
-        }
-        num = 1;
-    }
-    FM17xx_CloseAntenna();
-    return num;
-}
-
 /*
 
 
@@ -855,7 +817,7 @@ DEVICE_PARAMS g_sDeviceParams = {0};
 DEVICE_OP g_sDeviceOp = {0};
 DEVICE_OPTAGINFO g_sDeviceOpTagInfo = {0};
 DEVICE_RSPFRAME g_sDevicerRspFrame = {0};
-
+u8 Device_ExportSatus = 0;
 void Device_Delayms(u32 n)
 {
     n *= 0x3800;
@@ -875,8 +837,11 @@ void Device_ExportInit()
 
     GPIO_InitStructure.GPIO_Pin = EXPORT_CH1_PORT.Pin | EXPORT_CH2_PORT.Pin;
     GPIO_Init(EXPORT_CH1_PORT.Port, &GPIO_InitStructure);
-    
+   
+    //Device_ExportCh1High();
     Device_ExportCh1Low();
+    
+    //Device_ExportCh2High();
     Device_ExportCh2Low();
 }
 
@@ -1077,10 +1042,10 @@ void Device_AutoTask()
     
     pOpInfo->op[num++] = DEVICE_OP_PROOF;
 
-    pOpInfo->antiShakeTick = 400;
+    pOpInfo->antiShakeTick = 0;
     pOpInfo->num = num;
     memcpy(pOpInfo->imParams.key, g_sDeviceParams.key, ISO14443A_M1_KEY_LEN);
-    memcpy(pOpInfo->imParams.blockDate, g_sDeviceParams.blockDate, DEVICE_PAR_AUTH_BLOCK_DATE_LEN * DEVICE_PAR_AUTH_BLOCK_NUM);
+    memcpy(pOpInfo->imParams.blockDate, g_sDeviceParams.blockDate, DEVICE_PAR_AUTH_BLOCK_NUM * ISO14443A_M1BLOCK_LEN);
     pOpInfo->imParams.blockAddr[0] = g_sDeviceParams.blockAddr;
     a_SetState(pOpInfo->state, DEVICE_STAT_TX);
 }
@@ -1296,6 +1261,7 @@ BOOL Device_Step(DEVICE_OP *pOpInfo)
                     b = FALSE;
             	}
             }
+            break;
         case DEVICE_OP_PROOF:
             if(rlt == DEVICE_RESULT_OK)
             {
@@ -1304,13 +1270,13 @@ BOOL Device_Step(DEVICE_OP *pOpInfo)
                 if(memcmp(pOpInfo->block, pOpInfo->imParams.blockDate[0], DEVICE_PAR_AUTH_BLOCK_DATE_LEN) == 0)
                 {
                     pOpInfo->bProof = TRUE;
-                    pOpInfo->proofFlag = 0x01;
+                    pOpInfo->proofFlag = DEVICE_EXPORT_CH1_AMAR;
                     b = TRUE;
                 }
                 else if(memcmp(pOpInfo->block, pOpInfo->imParams.blockDate[1], DEVICE_PAR_AUTH_BLOCK_DATE_LEN) == 0)
                 {
                     pOpInfo->bProof = TRUE;
-                    pOpInfo->proofFlag = 0x02;
+                    pOpInfo->proofFlag = DEVICE_EXPORT_CH2_AMAR;
                     b = TRUE;
                 }
                 else
@@ -1452,5 +1418,31 @@ void Device_CheckRemoveokTag(DEVICE_OP *pOpInfo, DEVICE_OPTAGINFO *pOpTagInfo)
     if(pOpTagInfo->opOkTick + 100 < g_nSysTick)
     {
         Device_ClearOkTag();
+        g_sDeviceOp.proofFlag = 0;
+    }
+}
+
+void Device_MonitorExport(u8 status)
+{   
+    static u8 oldStatus = 0;
+    
+    if(status ^ oldStatus)
+    {
+        oldStatus = status;
+        
+        if((status & DEVICE_EXPORT_CH1_AMAR) == DEVICE_EXPORT_CH1_AMAR)
+        {
+            Device_ExportCh1High();
+        }
+        else if((status & DEVICE_EXPORT_CH2_AMAR) == DEVICE_EXPORT_CH2_AMAR)
+        {
+            Device_ExportCh2High();
+        }
+        else 
+        {
+            Device_ExportCh1Low();
+            Device_ExportCh2Low();    
+        
+        }
     }
 }

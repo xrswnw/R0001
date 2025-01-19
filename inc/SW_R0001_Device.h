@@ -305,7 +305,7 @@ typedef struct deviceParams{
     u8 workMode;
     u16 addr;
     u8 blockAddr;
-    u8 blockDate[DEVICE_PAR_AUTH_BLOCK_NUM][DEVICE_PAR_AUTH_BLOCK_DATE_LEN];
+    u8 blockDate[DEVICE_PAR_AUTH_BLOCK_NUM][ISO14443A_M1BLOCK_LEN];
     u8 key[ISO14443A_M1_KEY_LEN];
     u16 crc;
 }DEVICE_PARAMS;
@@ -333,7 +333,7 @@ typedef struct deviceImParams{
     u8 mode;
     u8 blockNum;
     u8 blockAddr[DEVICE_IM_OP_NUM];
-    u8 blockDate[DEVICE_PAR_AUTH_BLOCK_NUM][DEVICE_PAR_AUTH_BLOCK_DATE_LEN];
+    u8 blockDate[DEVICE_PAR_AUTH_BLOCK_NUM][ISO14443A_M1BLOCK_LEN];
     u8 key[ISO14443A_M1_KEY_LEN];
 }DEVICE_IMPARAMS;
 
@@ -362,7 +362,7 @@ typedef struct deviceOperation{
     u32 state;
     u8 tagNum;
     ISO14443A_UID tag;
-    u8 block[DEVICE_PAR_AUTH_BLOCK_DATE_LEN];
+    u8 block[ISO14443A_M1BLOCK_LEN];
     u8 op[DEVICE_OP_MAX_NUM];
     u8 step;
     u8 num;
@@ -445,6 +445,14 @@ void Device_Delayms(u32 n);
 
 
 
-#define Device_ClearOkTag()         {memset(&g_sDeviceOpTagInfo.okTag, 0, sizeof(ISO14443A_UID)); g_sDeviceOpTagInfo.bTagOk = FALSE;}while(0)
+#define Device_ClearOkTag()         {memset(&g_sDeviceOpTagInfo.okTag, 0, sizeof(ISO14443A_UID)); g_sDeviceOpTagInfo.bTagOk = FALSE; }while(0)
 void Device_CheckRemoveokTag(DEVICE_OP *pOpInfo, DEVICE_OPTAGINFO *pOpTagInfo);
+
+
+#define DEVICE_EXPORT_CH1_AMAR                                  0x01
+#define DEVICE_EXPORT_CH2_AMAR                                  0x02
+
+void Device_MonitorExport(u8 status);
+
+extern u8 Device_ExportSatus;
 #endif

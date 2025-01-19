@@ -78,7 +78,7 @@ typedef struct uartRcvFrame{
   
 #define Uart_IsRcvFrame(rcvFrame)           (((rcvFrame).state == UART_STAT_TO || (rcvFrame).state == UART_STAT_END))
 
-#define Uart_ResetFrame(rcvFrame)           (memset(&(rcvFrame), 0, sizeof(UART_RCVFRAME)))
+#define Uart_ResetFrame(rcvFrame)           do{(rcvFrame)->state = UART_STAT_IDLE; (rcvFrame)->length = 0; (rcvFrame)->index = 0; (rcvFrame)->idleTime = 0;}while(0)
 #define Uart_GetFrameCrc(p, len)            (*((u16 *)(p + len - 2)))
 #define Uart_GetFrameLength(p)              (((p)[UART_FRAME_POS_LEN]) + 3)
 
@@ -104,5 +104,6 @@ typedef struct uartRcvFrame{
 BOOL Uart_CheckSpecialFrame(UART_RCVFRAME *pRcvFrame);
 void Uart_ReceiveBootFrame(u8 byte, UART_RCVFRAME *pRcvFrame);
 
+u16 Uart_UsrCheckFrame(u8 *pBuffer, u16 len, u16 *pStartPos);
 #endif
 

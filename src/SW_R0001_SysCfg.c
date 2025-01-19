@@ -79,10 +79,10 @@ void Sys_CfgPeriphClk(FunctionalState state)
                            RCC_APB2Periph_GPIOB|
                            RCC_APB2Periph_GPIOC |
                            RCC_APB2Periph_AFIO |
+                           RCC_APB2Periph_USART1 |
                            RCC_APB2Periph_SPI1, state);
 
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2 |
-                           RCC_APB1Periph_TIM4, state);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, state);
 }
 
 void Sys_CfgNVIC(void)
@@ -181,7 +181,7 @@ void Sys_LedTask(void)
             Sys_RunLedOff();
         }
         a_ClearStateBit(g_nSysState, SYS_STAT_RUNLED);
-
+        //Uart_WriteBuffer((u8 *)&g_nSysTick, 4);
     #if SYS_ENABLE_WDT
         WDG_FeedIWDog();
     #endif
@@ -225,25 +225,17 @@ void Sys_UartTask(void)
     //串口数据帧解析
   if(Uart_IsRcvFrame(g_sUartRcvFrame))
     {
-        u16 crc1 = 0, crc2 = 0;
-
+        u16 startPos = 0, txLen = 0;
+        
         memcpy(&g_sUartRcvTempFrame, &g_sUartRcvFrame, sizeof(g_sUartRcvFrame));
-        Uart_ResetFrame(g_sUartRcvFrame);
-        if(g_sUartRcvTempFrame.index >= READER_FRAME_MIN_LEN)
+        Uart_ResetFrame(&g_sUartRcvFrame);
+        if(Uart_UsrCheckFrame(g_sUartRcvTempFrame.buffer, g_sUartRcvTempFrame.length, &startPos))
         {
-            crc1 = Uart_GetFrameCrc(g_sUartRcvTempFrame.buffer, g_sUartRcvTempFrame.index);
-            crc2 = a_GetCrc(g_sUartRcvTempFrame.buffer + UART_FRAME_POS_LEN, g_sUartRcvTempFrame.index - 4);
-
-            if(crc1 == crc2)
+            g_sReaderRspFrame.com = READER_COM_UART;
+            txLen = Device_ProcessUartFrame(g_sUartRcvTempFrame.buffer + startPos, g_sUartRcvTempFrame.length);
+            if(txLen > 0)
             {
-                u8 txLen = 0;
-
-                g_sReaderRspFrame.com = READER_COM_UART;
-                txLen = Device_ProcessUartFrame(g_sUartRcvTempFrame.buffer, g_sUartRcvTempFrame.index);
-                if(txLen > 0)
-                {
-                    a_SetStateBit(g_nSysState, SYS_STAT_UARTTX);
-                }
+                a_SetStateBit(g_nSysState, SYS_STAT_UARTTX);
             }
         }
     }
@@ -270,6 +262,12 @@ void Sys_DeviceTask()
         Device_AutoTask();
     }
 
+    if(a_CheckStateBit(g_nSysState, SYS_STAT_MONITOR_EXPORT))
+    {
+        a_ClearStateBit(g_nSysState, SYS_STAT_MONITOR_EXPORT);
+        Device_MonitorExport(g_sDeviceOp.proofFlag);
+    }
+    
     if(a_CheckStateBit(g_sDeviceOp.state, DEVICE_STAT_TX))
     {
         if(g_sDeviceOp.index < g_sDeviceOp.num)
@@ -302,8 +300,8 @@ void Sys_DeviceTask()
                 if(g_sDeviceOp.bProof == TRUE || g_sDeviceOp.bRepeatTag == TRUE)
                 {
                     g_sDeviceOpTagInfo.bTagOk = TRUE;
-                    memcpy(&g_sDeviceOpTagInfo.okTag, &g_sDeviceOp.tag, sizeof(ISO14443A_UID));   //操作成功标签
                     a_SetStateBit(g_nSysState, SYS_STAT_ALARMBUZZER);
+                    memcpy(&g_sDeviceOpTagInfo.okTag, &g_sDeviceOp.tag, sizeof(ISO14443A_UID));   //操作成功标签
                 }
             }
             

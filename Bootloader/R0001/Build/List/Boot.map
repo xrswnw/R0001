@@ -1,60 +1,60 @@
 ###############################################################################
 #
-# IAR ELF Linker V8.40.1.212/W32 for ARM                  18/Jan/2025  10:48:13
+# IAR ELF Linker V8.40.1.212/W32 for ARM                  19/Jan/2025  12:00:00
 # Copyright 2007-2019 IAR Systems AB.
 #
 #    Output file  =
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Exe\Boot.out
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Exe\Boot.out
 #    Map file     =
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\List\Boot.map
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\List\Boot.map
 #    Command line =
-#        -f C:\Users\swnw\AppData\Local\Temp\EWF653.tmp
-#        (E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\main.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\misc.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\startup_stm32f10x_hd.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_adc.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_bkp.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_can.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_cec.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_crc.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_dac.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_dbgmcu.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_dma.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_exti.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_flash.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_fsmc.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_gpio.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_i2c.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_it.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_iwdg.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_pwr.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_rcc.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_rtc.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_sdio.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_spi.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_tim.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_usart.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\stm32f10x_wwdg.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_FRam.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_FRam_HL.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_R485.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_R485_HL.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_Reader.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_SysCfg.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_SysTick_HL.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_Uart.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Boot_Uart_HL.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Des.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_FRam.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Stdlib.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\SW_Uart_Receive.o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj\system_stm32f10x.o
+#        -f C:\Users\swnw\AppData\Local\Temp\EWAA64.tmp
+#        (E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\main.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\misc.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\startup_stm32f10x_hd.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_adc.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_bkp.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_can.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_cec.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_crc.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_dac.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_dbgmcu.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_dma.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_exti.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_flash.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_fsmc.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_gpio.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_i2c.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_it.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_iwdg.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_pwr.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_rcc.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_rtc.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_sdio.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_spi.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_tim.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_usart.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\stm32f10x_wwdg.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_FRam.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_FRam_HL.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_R485.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_R485_HL.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_Reader.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_SysCfg.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_SysTick_HL.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_Uart.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Boot_Uart_HL.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Des.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_FRam.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Stdlib.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\SW_Uart_Receive.o
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj\system_stm32f10x.o
 #        --redirect _Printf=_PrintfFull --redirect _Scanf=_ScanfFull
 #        --no_out_extension -o
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Exe\Boot.out --map
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\List\Boot.map --config
-#        E:\AnyID\Git\R0001\R0001\Bootloader\R0001\GD32F103x8.icf --semihosting
-#        --entry __iar_program_start --vfe --text_out locale)
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Exe\Boot.out --map
+#        E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\List\Boot.map
+#        --config E:\AnyID\Periph\Git\R0001\Bootloader\R0001\GD32F103x8.icf
+#        --semihosting --entry __iar_program_start --vfe --text_out locale)
 #
 ###############################################################################
 
@@ -266,7 +266,7 @@ command line/config:
     -------------------------------------------------
     Total:
 
-E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj: [1]
+E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj: [1]
     SW_Boot_FRam.o               40                 8
     SW_Boot_FRam_HL.o           316       16
     SW_Boot_R485.o                              2'316
@@ -493,7 +493,7 @@ main                     0x800'21fb   0x14  Code  Gb  main.o [1]
 memcmp                   0x800'1665         Code  Gb  memcmp.o [3]
 
 
-[1] = E:\AnyID\Git\R0001\R0001\Bootloader\R0001\Build\Obj
+[1] = E:\AnyID\Periph\Git\R0001\Bootloader\R0001\Build\Obj
 [2] = dl7M_tlf.a
 [3] = rt7M_tl.a
 [4] = shb_l.a

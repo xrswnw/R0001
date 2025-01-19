@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <settings>
     <DebugChecksum>
-        <Checksum>3144546416</Checksum>
+        <Checksum>3154499507</Checksum>
     </DebugChecksum>
     <Exceptions>
         <StopOnUncaught>_ 0</StopOnUncaught>
@@ -143,7 +143,8 @@
         <Count>0</Count>
     </Breakpoints2>
     <Aliases>
-        <Count>0</Count>
+        <A0>_ "E:\AnyID\Git\R0001\R0001\Bootloader\stm32f10x_it.c" ""</A0>
+        <Count>1</Count>
         <SuppressDialog>0</SuppressDialog>
     </Aliases>
 </settings>
